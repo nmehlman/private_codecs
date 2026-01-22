@@ -1,0 +1,21 @@
+task: "masked_categorical_emotion"
+codec: "encodec"
+dataset: "expresso"
+
+latent_dim: 128
+sigma: 0.0
+
+audio_save_path: "/data1/nmehlman/logs/priv-codec/informed-noise-masking/audio"
+audio_batches_to_save: 2
+
+embed_model_checkpoint: "/data1/nmehlman/logs/priv-codec/embed_predictor/expresso/encodec/test_run/version_0/checkpoints/epoch=99-step=33600.ckpt"
+
+data_args:
+  data_dir: "/data1/open_data/expresso/"
+  split: "test"
+  load_read_only: True
+
+device: "cuda:0"
+batch_size: 16
+
+save_path: "/data1/nmehlman/logs/priv-codec/informed-noise-masking/expresso/encodec/encodec-expresso-sigma=0.pkl"

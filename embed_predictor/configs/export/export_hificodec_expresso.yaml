@@ -1,0 +1,11 @@
+task: "categorical_emotion"
+codec: "hificodec"
+dataset: "expresso"
+
+data_args:
+  data_dir: "/data1/open_data/expresso/"
+  split: "train"
+
+device: "cuda:3"
+
+save_path: "/data/nmehlman/priv-codecs-data/emotion_embeddings/expresso/hificodec/train"

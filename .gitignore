@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test / coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.nox/
+
+# IDE / notebook artifacts
+.idea/
+.vscode/
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.env.*
+
+# Local data
+*.sqlite3
+*.log

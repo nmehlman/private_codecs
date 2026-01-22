@@ -1,0 +1,12 @@
+task: "categorical_emotion"
+codec: "hificodec"
+dataset: "expresso"
+
+data_args:
+  data_dir: "/data1/open_data/expresso/"
+  split: "test"
+
+device: "cuda:3"
+batch_size: 16
+
+save_path: "/data1/nmehlman/logs/priv-codec/benchmarking/emotion/hificodec-expresso.pkl"

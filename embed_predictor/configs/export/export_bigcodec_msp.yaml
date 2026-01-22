@@ -1,0 +1,11 @@
+task: "categorical_emotion"
+codec: "bigcodec"
+dataset: "msp_podcast"
+
+data_args:
+  data_dir: "/data1/open_data/MSP-Podcast-1.11/"
+  split: "train"
+
+device: "cuda:1"
+
+save_path: "/data/nmehlman/priv-codecs-data/emotion_embeddings/msp_podcast/bigcodec/train"

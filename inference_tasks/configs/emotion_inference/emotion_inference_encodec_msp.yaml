@@ -1,0 +1,12 @@
+task: "categorical_emotion"
+codec: "encodec"
+dataset: "msp_podcast"
+
+data_args:
+  data_dir: "/data1/open_data/MSP-Podcast-1.11/"
+  split: "development"
+
+device: "cuda:1"
+batch_size: 16
+
+save_path: "/data1/nmehlman/logs/priv-codec/benchmarking/emotion/encodec-msp_podcast.pkl"

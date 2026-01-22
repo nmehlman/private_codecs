@@ -1,0 +1,11 @@
+task: "categorical_emotion"
+codec: "encodec"
+dataset: "expresso"
+
+data_args:
+  data_dir: "/data1/open_data/expresso/"
+  split: "train"
+
+device: "cuda:2"
+
+save_path: "/data/nmehlman/priv-codecs-data/emotion_embeddings/expresso/encodec/train"

@@ -1,0 +1,13 @@
+task: "categorical_emotion"
+codec: "encodec"
+dataset: "expresso"
+
+data_args:
+  data_dir: "/data1/open_data/expresso/"
+  load_read_only: true
+  split: "test"
+
+device: "cuda:0"
+batch_size: 16
+
+save_path: "/data1/nmehlman/logs/priv-codec/benchmarking/emotion/encodec-expresso-read-only.pkl"
