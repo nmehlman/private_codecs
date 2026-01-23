@@ -23,9 +23,10 @@ VP_EMOTION_LABELS = [
 
 class VoxProfileEmotionModel:
         
-    def __init__(self, device: str = "cpu") -> None:
+    def __init__(self, device: str = "cpu", split_models: bool = False) -> None:
         
         self.device = device
+        self.split_models = split_models
         self.sample_rate = VOX_PROFILE_SR
 
         self.wavlm_model = WavLMWrapper.from_pretrained("tiantiaf/wavlm-large-categorical-emotion").to(device)
@@ -53,6 +54,12 @@ class VoxProfileEmotionModel:
         wavlm_logits, wavlm_embedding, _, _, _, _ = self.wavlm_model(
             audio, return_feature=True, length=lengths
         )
+
+        if self.split_models:
+            if return_embeddings:
+                return {"whisper_logits": whisper_logits, "wavlm_logits": wavlm_logits}, {"whisper_embedding": whisper_embedding, "wavlm_embedding": wavlm_embedding}
+            else:
+                return {"whisper_logits": whisper_logits, "wavlm_logits": wavlm_logits}
 
         logits = 1/2 * (whisper_logits + wavlm_logits) # DEBUG
         embedding = torch.cat([whisper_embedding, wavlm_embedding], dim=1)
