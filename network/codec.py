@@ -48,7 +48,7 @@ class EnCodec:
         inputs = self.processor(raw_audio=audio, sampling_rate=self.sample_rate, return_tensors="pt")
 
         with torch.no_grad():
-            audio_scales, embeds = self.model.encode(inputs["input_values"].to(self.device), return_dict=False) # (1, B, K, T)
+            _, audio_scales, embeds = self.model.encode(inputs["input_values"].to(self.device), return_dict=False) # (1, B, K, T)
 
         assert isinstance(audio_scales, list)
         assert len(audio_scales) == 1
