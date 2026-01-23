@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 import torchaudio
 
-sys.path.append("/home/nmehlman/private-codecs/vox-profile")
+# Make sure to add the VoxProfle directory to the system path
 from src.model.emotion.wavlm_emotion import WavLMWrapper # type: ignore
 from src.model.emotion.whisper_emotion import WhisperWrapper # type: ignore
 
