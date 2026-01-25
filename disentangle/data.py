@@ -34,6 +34,13 @@ class EmbeddingDataset(Dataset):
             features = sample[self.input_type]
             emotion_lab = sample[f"{self.emotion_model}_emotion_logits"].argmax().item()
             emotion_emb = sample[f"{self.emotion_model}_emotion_embedding"].detach()
+            
+            # Check for NaN values
+            if torch.isnan(features).any():
+                raise ValueError(f"NaN found in features at index {index}")
+            if torch.isnan(emotion_emb).any():
+                raise ValueError(f"NaN found in emotion_emb at index {index}")
+            
             length = features.shape[-1]
             
             return (features, emotion_emb, emotion_lab, length)
