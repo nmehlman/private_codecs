@@ -3,7 +3,8 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-
+from torch.utils.data import random_split
+from typing import Dict, Callable, Union
 
 class EmbeddingDataset(Dataset):
     def __init__(
@@ -62,6 +63,72 @@ class EmbeddingDataset(Dataset):
         
 
         return batch_features, emotion_embs, emotion_labs, lengths
+    
+
+def get_dataloaders(
+                    dataset_kwargs: Dict = {},
+                    batch_size: int = 16,
+                    collate_fn: Union[Callable, None] = None,
+                    train_frac: float = 1.0,
+                    **dataloader_kwargs
+                    ) -> Union[ DataLoader, Dict ]:
+
+    """Generate dataloader(s) with option to split into train/val
+
+    Args:
+        DatasetClass (Dataset): dataset to use for generating loader
+        dataset_kwargs (Dict): kwargs for dataset construction
+        batch_size (int): batch size
+        collate_fn (Union[Callable, None], optional): Function to use for batch collation. Defaults to None.
+        train_frac (float, optional): fraction of data to use for train split. Defaults to 1.0
+        dataloader_kwargs (Dict, optional): additional kwargs to pass to dataloader constructor
+
+    Returns:
+        loader(s) (Union[ DataLoader, Dict ]): single dataloader if train_frac = 1.0, or dict with train/val loaders
+        if train_frac < 1.0
+    """
+
+    dset = EmbeddingDataset(**dataset_kwargs)
+
+    if train_frac < 1.0:
+
+        dset_size = len(dset)
+        train_size = int(dset_size * train_frac)
+        val_size = dset_size - train_size
+
+        train_dset, val_dset = random_split(dset, [train_size, val_size])
+
+        train_loader = DataLoader(
+                                dataset = train_dset,
+                                batch_size = batch_size,
+                                collate_fn = collate_fn,
+                                **dataloader_kwargs
+                            )
+        
+        val_loader = DataLoader(
+                                dataset = val_dset,
+                                batch_size = batch_size,
+                                collate_fn = collate_fn,
+                                **dataloader_kwargs
+                            )
+        
+        loaders = {"train": train_loader, "val": val_loader}
+
+        return loaders
+
+    else:
+
+        loader = DataLoader(
+                            dataset = dset,
+                            batch_size = batch_size,
+                            collate_fn = collate_fn,
+                            **dataloader_kwargs
+                            )
+
+        return loader
+
+
+                    
     
 if __name__ == "__main__":
 
