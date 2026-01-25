@@ -68,7 +68,6 @@ class EmbeddingDataset(Dataset):
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
                     batch_size: int = 16,
-                    collate_fn: Union[Callable, None] = None,
                     train_frac: float = 1.0,
                     **dataloader_kwargs
                     ) -> Union[ DataLoader, Dict ]:
@@ -101,14 +100,14 @@ def get_dataloaders(
         train_loader = DataLoader(
                                 dataset = train_dset,
                                 batch_size = batch_size,
-                                collate_fn = collate_fn,
+                                collate_fn = EmbeddingDataset.collate_function,
                                 **dataloader_kwargs
                             )
         
         val_loader = DataLoader(
                                 dataset = val_dset,
                                 batch_size = batch_size,
-                                collate_fn = collate_fn,
+                                collate_fn = EmbeddingDataset.collate_function,
                                 **dataloader_kwargs
                             )
         
@@ -121,7 +120,7 @@ def get_dataloaders(
         loader = DataLoader(
                             dataset = dset,
                             batch_size = batch_size,
-                            collate_fn = collate_fn,
+                            collate_fn = EmbeddingDataset.collate_function,
                             **dataloader_kwargs
                             )
 

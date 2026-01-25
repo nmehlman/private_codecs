@@ -1,5 +1,4 @@
 import sys
-sys.path.append('../../pytorch-tcn')  # TODO: add to path
 from pytorch_tcn.tcn import TCN 
 import torch
 import torch.nn as nn

@@ -38,7 +38,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = False
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
+        self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
+        self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
 
     def forward(self, x, cond):
         return self.ae(x, cond)
@@ -55,7 +56,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         # Train adversarial classifier to predict the emotions from the latent code
         self.toggle_optimizer(opt_adv)
         adv_logits = self.adv_classifier(z.detach(), lengths)
-        adv_acc = self.accuracy(adv_logits, emotion_labs)
+        adv_acc = self.train_accuracy(adv_logits, emotion_labs)
         adv_loss = F.cross_entropy(adv_logits, emotion_labs)
         self.manual_backward(adv_loss)
         opt_adv.step()
@@ -83,6 +84,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             prog_bar=True,
             on_step=True,
             on_epoch=False,
+            sync_dist=True
         )
 
         return ae_loss.detach()
@@ -93,12 +95,11 @@ class EmotionDisentangleModule(pl.LightningModule):
         x, emotion_emb, emotion_labs, lengths = batch
         x_hat, z = self(x, emotion_emb)
         recon_loss = F.mse_loss(x_hat, x)
-        self.log('val_recon_loss', recon_loss.detach(), prog_bar=True, on_step=False, on_epoch=True)
+        self.log('val_recon_loss', recon_loss.detach(), prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
 
         adv_logits = self.adv_classifier(z, lengths)
-        adv_acc = self.accuracy(adv_logits, emotion_labs)
-        self.log('val_adv_acc', adv_acc.detach(), prog_bar=True, on_step=False, on_epoch=True)
-
+        adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
+        self.log('val_adv_acc', adv_acc.detach(), prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
         opt_ae = torch.optim.Adam(self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
