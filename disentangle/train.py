@@ -57,7 +57,7 @@ if __name__ == "__main__":
     logger = TensorBoardLogger(**config["tensorboard"])
 
     # Make trainer
-    trainer = Trainer(logger=logger, strategy=DDPStrategy(find_unused_parameters=False), **config["trainer"])
+    trainer = Trainer(logger=logger, strategy=DDPStrategy(find_unused_parameters=True), **config["trainer"])
 
     trainer.fit(
             pl_model,
