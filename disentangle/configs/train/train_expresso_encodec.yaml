@@ -43,12 +43,11 @@ trainer:
   devices: "auto"
   deterministic: False
   detect_anomaly: True
-  accumulate_grad_batches: 1
 
 # Tensorboard options:
 tensorboard:
-  save_dir: "path"
-  name: "name"
+  save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs"
+  name: "train_test_expresso_encodec"
   version: null     # Automatic versioning if set to null (recommended)
 
 
