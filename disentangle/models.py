@@ -6,17 +6,22 @@ import torch.nn as nn
 
 class DisentanglementAE(nn.Module):
     
-    def __init__(self, codec_dim, latent_dim, enc_channels, dec_channels, conditioning_dim: int, kernel_size=3, dropout=0.2, **kwargs):
+    def __init__(self, 
+                 codec_dim: int, 
+                 latent_dim: int, 
+                 enc_channels: list,
+                 dec_channels: list, 
+                 conditioning_dim: int, 
+                 **kwargs):
         
         super(DisentanglementAE, self).__init__()
         
-        self.encoder = TCN(codec_dim, enc_channels + [latent_dim], kernel_size=kernel_size, dropout=dropout, **kwargs)
-        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], kernel_size=kernel_size, dropout=dropout, conditioning_dim=conditioning_dim, **kwargs)
+        self.encoder = TCN(codec_dim, enc_channels + [latent_dim], **kwargs)
+        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, **kwargs)
 
-    def forward(self, codec_output, emotion_embed):
+    def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
         z = self.encoder(codec_output)
         x_hat = self.decoder(z, conditioning=emotion_embed)
-        
         return x_hat, z
     
 class AttentionPooling(torch.nn.Module):
@@ -33,7 +38,7 @@ class AttentionPooling(torch.nn.Module):
         return weighted_sum
 
 class AdversarialClassifier(nn.Module):
-    def __init__(self, input_dim: int, num_classes: int, lr: float = 1e-3, **kwargs):
+    def __init__(self, input_dim: int, num_classes: int, **kwargs):
         
         super(AdversarialClassifier, self).__init__()
         
@@ -48,8 +53,6 @@ class AdversarialClassifier(nn.Module):
             output_projection=None,
             **kwargs
         )
-
-        self.lr = lr
 
         self.pooling = AttentionPooling(input_dim=64)
         self.fc = torch.nn.Linear(64, num_classes)
