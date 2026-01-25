@@ -3,6 +3,8 @@ from disentangle.models import DisentanglementAE, AdversarialClassifier
 import torch
 import torch.nn.functional as F
 from torchmetrics import Accuracy
+from torch.optim.lr_scheduler import LambdaLR
+from math import sin
 
 class EmotionDisentangleModule(pl.LightningModule):
     def __init__(self, 
@@ -16,6 +18,8 @@ class EmotionDisentangleModule(pl.LightningModule):
                  adversarial_kwargs: dict = {},
                  adv_loss_weight: float = 1.0,
                  learning_rate: float = 1e-3,
+                 adv_annealing_steps: int = 0,
+                 adv_update_factor: int = 1,
                  weight_decay: float = 0):
         
         super(EmotionDisentangleModule, self).__init__()
@@ -37,12 +41,21 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = False
-
+        self.adv_annealing_steps = adv_annealing_steps
+        self.adv_update_factor = adv_update_factor
         self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
         self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
 
     def forward(self, x, cond):
         return self.ae(x, cond)
+    
+    def _compute_adv_loss_weight(self):
+        # Apply sine annealing for adversarial loss weight
+        if self.global_step < self.adv_annealing_steps:
+            frac = self.global_step / self.adv_annealing_steps
+            return self.adv_loss_weight * sin(frac * (3.14159265 / 2))**2
+        else:
+            return self.adv_loss_weight
 
     def training_step(self, batch, batch_idx):
         
@@ -54,20 +67,23 @@ class EmotionDisentangleModule(pl.LightningModule):
         recon_loss = F.mse_loss(x_hat, x)
 
         # Train adversarial classifier to predict the emotions from the latent code
-        self.toggle_optimizer(opt_adv)
-        adv_logits = self.adv_classifier(z.detach(), lengths)
-        adv_acc = self.train_accuracy(adv_logits, emotion_labs)
-        adv_loss = F.cross_entropy(adv_logits, emotion_labs)
-        self.manual_backward(adv_loss)
-        opt_adv.step()
-        opt_adv.zero_grad()
-        self.untoggle_optimizer(opt_adv)
+        for _ in range(self.adv_update_factor):
+            self.toggle_optimizer(opt_adv)
+            adv_logits = self.adv_classifier(z.detach(), lengths)
+            adv_acc = self.train_accuracy(adv_logits, emotion_labs)
+            adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+            self.manual_backward(adv_loss)
+            opt_adv.step()
+            opt_adv.zero_grad()
+            self.untoggle_optimizer(opt_adv)
+
+            adv_loss_weight = self._compute_adv_loss_weight()
 
         # Train AE to reconstruct and simultaneously confuse the adversary
         self.toggle_optimizer(opt_ae)
         fool_logits = self.adv_classifier(z, lengths)
         fool_loss = F.cross_entropy(fool_logits, emotion_labs)
-        ae_loss = recon_loss - self.adv_loss_weight * fool_loss
+        ae_loss = recon_loss - adv_loss_weight * fool_loss
         self.manual_backward(ae_loss)
         opt_ae.step()
         opt_ae.zero_grad()
