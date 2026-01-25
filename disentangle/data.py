@@ -37,8 +37,10 @@ class EmbeddingDataset(Dataset):
             
             # Check for NaN values
             if torch.isnan(features).any():
+                print(sample['filename'])
                 raise ValueError(f"NaN found in features at index {index}")
             if torch.isnan(emotion_emb).any():
+                print(sample['filename'])
                 raise ValueError(f"NaN found in emotion_emb at index {index}")
             
             length = features.shape[-1]
