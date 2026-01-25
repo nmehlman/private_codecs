@@ -11,9 +11,9 @@ class EmotionDisentangleModule(pl.LightningModule):
                  enc_channels: list,
                  dec_channels: list, 
                  conditioning_dim: int,
-                 ae_kwargs: dict,
                  num_emotion_classes: int,
-                 adversarial_kwargs: dict,
+                 ae_kwargs: dict = {},
+                 adversarial_kwargs: dict = {},
                  adv_loss_weight: float = 1.0,
                  learning_rate: float = 1e-3,
                  weight_decay: float = 0):
