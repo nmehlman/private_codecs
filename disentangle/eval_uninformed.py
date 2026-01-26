@@ -54,7 +54,7 @@ if __name__ == "__main__":
         os.makedirs(save_root)
     
     # Load emotion disentanglement model from checkpoint
-    pl_model = EmotionDisentangleModule.load_from_checkpoint(config["ckpt_path"]).to(config["device"])
+    pl_model = EmotionDisentangleModule.load_from_checkpoint(config["ckpt_path"], **config["lightning"]).to(config["device"])
     
     # Load VP emotion model (pretrained/fixed)
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
