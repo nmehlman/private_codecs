@@ -7,7 +7,7 @@
 #SBATCH --output=/project2/shrikann_35/nmehlman/logs/private_codecs/slurm/%j_output.log
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-node=a40:1
-#SBATCH --chdir /home1/nmehlman/private_codecs/disentangle
+#SBATCH --chdir /home1/nmehlman/private_codecs/private_codecs/disentangle
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nmehlman@usc.edu
 
