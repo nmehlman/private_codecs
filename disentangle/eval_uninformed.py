@@ -1,6 +1,6 @@
 # TODO embedding support
 
-from disentangle.lightning import DisentanglementAE
+from disentangle.lightning import EmotionDisentangleModule
 from network.models import VoxProfileEmotionModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         os.makedirs(save_root)
     
     # Load emotion disentanglement model from checkpoint
-    pl_model = DisentanglementAE.load_from_checkpoint(config["ckpt_path"]).to(config["device"])
+    pl_model = EmotionDisentangleModule.load_from_checkpoint(config["ckpt_path"]).to(config["device"])
     
     # Load VP emotion model (pretrained/fixed)
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
