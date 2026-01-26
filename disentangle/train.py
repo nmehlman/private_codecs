@@ -14,30 +14,18 @@ from disentangle.lightning import EmotionDisentangleModule
 
 torch.set_warn_always(False)
 
-def load_yaml_config(file_path: str) -> dict:
-    """Loads config from yaml file
-    Args:
-        file_path (str): path to config file
-
-    Returns:
-        config (dict): config data
-    """
-    with open( file_path, 'r' ) as file:
-        config = yaml.safe_load(file)
-
-    return config
-
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")
 parser.add_argument("--config", type=str, required=True, help="Path to the YAML configuration file")
 args = parser.parse_args()
 
-CONFIG_PATH = args.config
 
 if __name__ == "__main__":
 
     # Load config, and perform general setup
-    config = load_yaml_config(CONFIG_PATH)
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+    
     os.environ["CUDA_VISIBLE_DEVICES"] = config["gpus"]
     if config["random_seed"]:
         pl.seed_everything(config["random_seed"], workers=True)
