@@ -77,7 +77,6 @@ class EmbeddingDataset(Dataset):
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
                     batch_size: int = 16,
-                    train_frac: float = 1.0,
                     **dataloader_kwargs
                     ) -> Union[ DataLoader, Dict ]:
 
@@ -96,44 +95,27 @@ def get_dataloaders(
         if train_frac < 1.0
     """
 
-    dset = EmbeddingDataset(**dataset_kwargs)
+    train_dset = EmbeddingDataset(**dataset_kwargs, split="train")
+    val_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
-    if train_frac < 1.0:
-
-        dset_size = len(dset)
-        train_size = int(dset_size * train_frac)
-        val_size = dset_size - train_size
-
-        train_dset, val_dset = random_split(dset, [train_size, val_size])
-
-        train_loader = DataLoader(
-                                dataset = train_dset,
-                                batch_size = batch_size,
-                                collate_fn = EmbeddingDataset.collate_function,
-                                **dataloader_kwargs
-                            )
-        
-        val_loader = DataLoader(
-                                dataset = val_dset,
-                                batch_size = batch_size,
-                                collate_fn = EmbeddingDataset.collate_function,
-                                **dataloader_kwargs
-                            )
-        
-        loaders = {"train": train_loader, "val": val_loader}
-
-        return loaders
-
-    else:
-
-        loader = DataLoader(
-                            dataset = dset,
+   
+    train_loader = DataLoader(
+                            dataset = train_dset,
                             batch_size = batch_size,
                             collate_fn = EmbeddingDataset.collate_function,
                             **dataloader_kwargs
-                            )
+                        )
+    
+    val_loader = DataLoader(
+                            dataset = val_dset,
+                            batch_size = batch_size,
+                            collate_fn = EmbeddingDataset.collate_function,
+                            **dataloader_kwargs
+                        )
+        
+    loaders = {"train": train_loader, "val": val_loader}
 
-        return loader
+    return loaders
 
 
                     

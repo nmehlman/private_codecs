@@ -10,7 +10,6 @@ gpus: "0"
 # Dataset options:
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec" 
-  split: "train"
   input_type: "quantized_embedding"
   emotion_model: "wavlm"
 
@@ -18,7 +17,6 @@ dataset:
 dataloader:
   batch_size: 32
   num_workers: 4
-  train_frac: 0.9
 
 # Model options:
 lightning:
