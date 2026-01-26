@@ -9,7 +9,7 @@ import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
 
-from disentangle.data import get_dataloaders
+from disentangle.codec_data import get_dataloaders
 from disentangle.lightning import EmotionDisentangleModule
 
 torch.set_warn_always(False)
