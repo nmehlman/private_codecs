@@ -26,7 +26,7 @@ lightning:
   dec_channels: [32, 64, 128]
   conditioning_dim: 256
   num_emotion_classes: 9
-  adv_loss_weight: 1.0
+  adv_loss_weight: 0.0
   learning_rate: 0.001
   weight_decay: 0
   adv_annealing_steps: 500
@@ -47,7 +47,7 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "first_train_expresso_encodec"
+  name: "ae_only"
   version: null     # Automatic versioning if set to null (recommended)
 
 

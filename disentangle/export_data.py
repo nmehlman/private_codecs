@@ -69,6 +69,15 @@ if __name__ == "__main__":
         codes = codes.squeeze()
         quantized_embeddings = quantized_embeddings.squeeze()
 
+        # Check for NaN values
+        if torch.isnan(embeddings).any() or torch.isnan(codes).any() or torch.isnan(quantized_embeddings).any():
+            print(f"Skipping {filename} due to NaN values in codec output")
+            continue
+        
+        if torch.isnan(emotion_logits["whisper_logits"]).any() or torch.isnan(emotion_logits["wavlm_logits"]).any():
+            print(f"Skipping {filename} due to NaN values in emotion logits")
+            continue
+
         save_dict = {
                 "filename": filename,
                 "label": label,
