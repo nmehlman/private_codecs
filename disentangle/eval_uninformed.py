@@ -65,7 +65,7 @@ if __name__ == "__main__":
     
     # Load dataset and create dataloader
     dataset_class, dataset_sr = DATASETS[config["dataset"]]
-    dataset = dataset_class(**config["dataset"], split="val") # CHANGEME to test when ready
+    dataset = dataset_class(**config["data_args"], split="val") # CHANGEME to test when ready
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Exporting Data"):
@@ -74,10 +74,11 @@ if __name__ == "__main__":
         label = sample["emotion"]
         filename = sample["filename"]
         length = sample["length"]
-
-        emotion_logits_raw, _ = emotion_model(
-            audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
-        )
+        
+        with torch.no_grad():
+            emotion_logits_raw, _ = emotion_model(
+                audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+            )
         
         with torch.no_grad():
             embeddings = codec.encode(audio, sr=dataset_sr)
@@ -91,9 +92,10 @@ if __name__ == "__main__":
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
                 )
         
-        emotion_logits_private, _ = emotion_model(
-            audio_private, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
-        )
+        with torch.no_grad():
+            emotion_logits_private, _ = emotion_model(
+                audio_private, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+            )
 
         save_dict = {
             "filename": filename,
