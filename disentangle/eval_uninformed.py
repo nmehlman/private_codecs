@@ -79,16 +79,18 @@ if __name__ == "__main__":
             emotion_logits_raw, emotion_embedding = emotion_model(
                 audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
             )
+
+        emotion_model = config["emotion_model"]
         
         with torch.no_grad():
             embedding = codec.encode(audio, sr=dataset_sr)
             _, quantized_embedding = codec.quantize(embedding)
-            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[config["emotion_model"]]) # CHANGEME
+            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_model}_emotion_embedding"]) # CHANGEME
             codes_private, _ = codec.quantize(embedding_private)
             audio_private = codec.decode(codes_private)
 
         with torch.no_grad():
-            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[config["emotion_model"]]) # DEBUG
+            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_model}_emotion_embedding"]) # DEBUG
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
