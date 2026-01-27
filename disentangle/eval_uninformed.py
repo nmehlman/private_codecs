@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
         audio_private = torchaudio.functional.resample(
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-                )
+                ).unsqueeze(0)
         
         print(audio.shape, audio_private.shape) # DEBUG
         
