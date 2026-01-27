@@ -22,7 +22,7 @@ dataloader:
 lightning:
   codec_dim: 128
   latent_dim: 128
-  enc_channels: [128, 64, 64]
+  enc_channels: [128, 64, 64] # Changed bottleneck size from 32 to 64
   dec_channels: [64, 64, 128]
   conditioning_dim: 256
   num_emotion_classes: 9

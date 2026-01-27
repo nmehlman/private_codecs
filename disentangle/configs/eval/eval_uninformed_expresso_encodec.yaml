@@ -4,7 +4,7 @@ dataset: "expresso"
 device: "cuda"
 gpus: "0"
 
-ckpt_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/test_ckpt.cptk"
+ckpt_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/first_train_expresso_encodec/version_0/checkpoints/epoch=99-step=67200.ckpt"
 num_samples_to_save: 10
 
 lightning:
