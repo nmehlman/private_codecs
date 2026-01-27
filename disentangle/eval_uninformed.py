@@ -76,16 +76,15 @@ if __name__ == "__main__":
         length = sample["length"]
         
         with torch.no_grad():
-            emotion_logits_raw = emotion_model(
-                audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
+            emotion_logits_raw, emotion_embedding = emotion_model(
+                audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
             )
         
         with torch.no_grad():
-            embeddings = codec.encode(audio, sr=dataset_sr)
-            _, quantized_embeddings = codec.quantize(embeddings)
-            # embeddings_private, _ = pl_model(embeddings) # DEBUG
-            embeddings_private = quantized_embeddings # DEBUG
-            codes_private, _ = codec.quantize(embeddings_private)
+            embedding = codec.encode(audio, sr=dataset_sr)
+            _, quantized_embedding = codec.quantize(embedding)
+            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) # DEBUG
+            codes_private, _ = codec.quantize(embedding_private)
             audio_private = codec.decode(codes_private)
 
         audio_private = torchaudio.functional.resample(
@@ -100,8 +99,6 @@ if __name__ == "__main__":
         save_dict = {
             "filename": filename,
             "label": label,
-            "quantized_embedding": quantized_embeddings.cpu(),
-            "raw_embedding": embeddings.cpu().squeeze(),
             "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"].cpu().squeeze(),
             "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
             "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
@@ -112,7 +109,7 @@ if __name__ == "__main__":
             save_dict["audio_raw"] = audio.cpu().squeeze()
             save_dict["audio_private"] = audio_private.cpu().squeeze()
         
-        save_path = os.path.join(save_root, f"{filename}.pkl")
+        save_path = os.path.join(save_root, f"{i}_{filename}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
     
