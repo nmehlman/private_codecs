@@ -83,9 +83,14 @@ if __name__ == "__main__":
         with torch.no_grad():
             embedding = codec.encode(audio, sr=dataset_sr)
             _, quantized_embedding = codec.quantize(embedding)
-            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) # DEBUG
+            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) # CHANGEME
             codes_private, _ = codec.quantize(embedding_private)
             audio_private = codec.decode(codes_private)
+
+        with torch.no_grad():
+            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding) # DEBUG
+            codes_self_recon, _ = codec.quantize(embedding_self_recon)
+            audio_self_recon = codec.decode(codes_self_recon)
 
         audio_private = torchaudio.functional.resample(
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
@@ -108,6 +113,7 @@ if __name__ == "__main__":
         if i <= config["num_samples_to_save"]: # Save audio only for first N samples
             save_dict["audio_raw"] = audio.cpu().squeeze()
             save_dict["audio_private"] = audio_private.cpu().squeeze()
+            save_dict["audio_self_recon"] = audio_self_recon.cpu().squeeze()
         
         save_path = os.path.join(save_root, f"{i}_{filename}.pkl")
         with open(save_path, "wb") as f:
