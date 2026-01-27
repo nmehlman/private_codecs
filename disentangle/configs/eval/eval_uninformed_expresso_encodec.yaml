@@ -20,6 +20,8 @@ lightning:
   adv_annealing_steps: 500
   adv_update_factor: 1
 
+emotion_model: "wavlm"
+
 # Dataset options:
 data_args:
   data_dir: "/project2/shrikann_35/DATA/expresso/" 

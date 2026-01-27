@@ -83,12 +83,12 @@ if __name__ == "__main__":
         with torch.no_grad():
             embedding = codec.encode(audio, sr=dataset_sr)
             _, quantized_embedding = codec.quantize(embedding)
-            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) # CHANGEME
+            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[config["emotion_model"]]) # CHANGEME
             codes_private, _ = codec.quantize(embedding_private)
             audio_private = codec.decode(codes_private)
 
         with torch.no_grad():
-            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding) # DEBUG
+            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[config["emotion_model"]]) # DEBUG
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
