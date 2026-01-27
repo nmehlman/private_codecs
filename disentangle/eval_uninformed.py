@@ -91,9 +91,7 @@ if __name__ == "__main__":
         audio_private = torchaudio.functional.resample(
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
                 ).unsqueeze(0)
-        
-        print(audio.shape, audio_private.shape) # DEBUG
-        
+                
         with torch.no_grad():
             emotion_logits_private = emotion_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
