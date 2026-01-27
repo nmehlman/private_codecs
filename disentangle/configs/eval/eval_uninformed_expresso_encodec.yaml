@@ -22,7 +22,7 @@ lightning:
 
 # Dataset options:
 data_args:
-  data_dir: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec" 
+  data_dir: "/project2/shrikann_35/DATA/expresso/" 
 
 # Dataloader options:
 dataloader:

@@ -8,4 +8,4 @@ data_args:
 
 device: "cuda"
 
-save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec/train"
+save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/bigcodec/train"
