@@ -22,8 +22,8 @@ dataloader:
 lightning:
   codec_dim: 128
   latent_dim: 128
-  enc_channels: [128, 64, 32]
-  dec_channels: [32, 64, 128]
+  enc_channels: [128, 64, 64]
+  dec_channels: [64, 64, 128]
   conditioning_dim: 256
   num_emotion_classes: 9
   adv_loss_weight: 0.0
