@@ -76,8 +76,8 @@ if __name__ == "__main__":
         length = sample["length"]
         
         with torch.no_grad():
-            emotion_logits_raw, _ = emotion_model(
-                audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+            emotion_logits_raw = emotion_model(
+                audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
             )
         
         with torch.no_grad():
@@ -92,9 +92,11 @@ if __name__ == "__main__":
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
                 )
         
+        print(audio.shape, audio_private.shape) # DEBUG
+        
         with torch.no_grad():
-            emotion_logits_private, _ = emotion_model(
-                audio_private, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+            emotion_logits_private = emotion_model(
+                audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
             )
 
         save_dict = {
