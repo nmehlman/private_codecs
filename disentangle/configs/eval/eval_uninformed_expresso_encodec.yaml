@@ -4,14 +4,14 @@ dataset: "expresso"
 device: "cuda"
 gpus: "0"
 
-ckpt_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/first_train_expresso_encodec/version_0/checkpoints/epoch=99-step=67200.ckpt"
+ckpt_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_1/checkpoints/epoch=99-step=74800.ckpt"
 num_samples_to_save: 10
 
 lightning:
   codec_dim: 128
   latent_dim: 128
-  enc_channels: [128, 64, 32]
-  dec_channels: [32, 64, 128]
+  enc_channels: [128, 64, 64]
+  dec_channels: [64, 64, 128]
   conditioning_dim: 256
   num_emotion_classes: 9
   adv_loss_weight: 1.0
