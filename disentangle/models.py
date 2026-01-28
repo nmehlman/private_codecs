@@ -15,8 +15,8 @@ class DisentanglementAE(nn.Module):
         
         super(DisentanglementAE, self).__init__()
         
-        self.encoder = TCN(codec_dim, enc_channels + [latent_dim], **kwargs)
-        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, **kwargs)
+        self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, activation='tanh', **kwargs)
+        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, causal=False, activation='tanh', **kwargs)
 
     def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
         z = self.encoder(codec_output)
