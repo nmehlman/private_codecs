@@ -52,6 +52,10 @@ if __name__ == "__main__":
     save_root = config["save_path"]
     if not os.path.exists(save_root):
         os.makedirs(save_root)
+        
+    # Save config to save root
+    with open(os.path.join(save_root, "config.yaml"), "w") as f:
+        yaml.dump(config, f)
     
     # Load emotion disentanglement model from checkpoint
     pl_model = EmotionDisentangleModule.load_from_checkpoint(config["ckpt_path"], **config["lightning"]).to(config["device"])
