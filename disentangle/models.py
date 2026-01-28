@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec, conditioning_dim)
 
-    x = torch.randn(batch_size, seq_len, codec_dim)
+    x = torch.randn(batch_size, codec_dim, seq_len)
     cond = torch.randn(batch_size, conditioning_dim) 
 
     x_hat, z = ae(x, cond)
