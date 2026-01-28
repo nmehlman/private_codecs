@@ -151,14 +151,15 @@ if __name__ == "__main__":
             features, _, _, lengths = batch
             # Collect only the non-padded part of each sample
             for i, length in enumerate(lengths):
-                quantized_features_list.append(features[i, :, :length])
+                quantized_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)
         
-        quantized_all = torch.cat(quantized_features_list, dim=-1)
-        quantized_mean = quantized_all.mean(dim=-1)
-        quantized_std = quantized_all.std(dim=-1)
+        # Concatenate all samples along time dimension
+        quantized_all = torch.cat(quantized_features_list, dim=-1)  # (codec_dim, total_time_steps)
+        quantized_mean = quantized_all.mean(dim=-1)  # (codec_dim,)
+        quantized_std = quantized_all.std(dim=-1)  # (codec_dim,)
         print(f"Quantized embeddings - Mean shape: {quantized_mean.shape}, Std shape: {quantized_std.shape}")
-        print(f"Quantized embeddings - Mean: {quantized_mean}")
-        print(f"Quantized embeddings - Std: {quantized_std}")
+        print(f"Quantized embeddings - Mean (per channel): {quantized_mean}")
+        print(f"Quantized embeddings - Std (per channel): {quantized_std}")
 
         # Compute statistics for raw embeddings
         raw_dataset = EmbeddingDataset(
@@ -181,11 +182,12 @@ if __name__ == "__main__":
             features, _, _, lengths = batch
             # Collect only the non-padded part of each sample
             for i, length in enumerate(lengths):
-                raw_features_list.append(features[i, :, :length])
+                raw_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)
         
-        raw_all = torch.cat(raw_features_list, dim=-1)
-        raw_mean = raw_all.mean(dim=-1)
-        raw_std = raw_all.std(dim=-1)
+        # Concatenate all samples along time dimension
+        raw_all = torch.cat(raw_features_list, dim=-1)  # (codec_dim, total_time_steps)
+        raw_mean = raw_all.mean(dim=-1)  # (codec_dim,)
+        raw_std = raw_all.std(dim=-1)  # (codec_dim,)
         print(f"Raw embeddings - Mean shape: {raw_mean.shape}, Std shape: {raw_std.shape}")
-        print(f"Raw embeddings - Mean: {raw_mean}")
-        print(f"Raw embeddings - Std: {raw_std}")
+        print(f"Raw embeddings - Mean (per channel): {raw_mean}")
+        print(f"Raw embeddings - Std (per channel): {raw_std}")
