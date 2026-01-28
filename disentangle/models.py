@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     codec_dim = 128
     batch_size = 8
-    seq_len = 128
+    seq_len = 512
     latent_dim = 16
     conditioning_dim = 32
 
