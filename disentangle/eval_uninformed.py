@@ -72,7 +72,7 @@ if __name__ == "__main__":
     dataset = dataset_class(**config["data_args"], split="dev") # CHANGEME to test when ready
     
     # Process each sample
-    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Exporting Data"):
+    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
         audio = sample["audio"].to(config["device"])
         label = sample["emotion"]
