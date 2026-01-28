@@ -123,25 +123,69 @@ def get_dataloaders(
 if __name__ == "__main__":
 
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
+    emotion_models = ["wavlm", "whisper"]
 
-    dataset = EmbeddingDataset(
-        dataset_path=data_path,
-        split="train",
-        input_type="quantized_embedding",
-        emotion_model="wavlm"
-    )
+    for emotion_model in emotion_models:
+        print(f"\n{'='*60}")
+        print(f"Computing statistics for {emotion_model.upper()}")
+        print(f"{'='*60}")
 
-    dataloader = DataLoader(
-        dataset,
-        batch_size=4,
-        shuffle=True,
-        collate_fn=EmbeddingDataset.collate_function
-    )
+        # Compute statistics for quantized embeddings
+        quantized_dataset = EmbeddingDataset(
+            dataset_path=data_path,
+            split="train",
+            input_type="quantized_embedding",
+            emotion_model=emotion_model
+        )
 
-    for batch in dataloader:
-        features, emotion_embs, emotion_labs, lengths = batch
-        print("Features shape:", features.shape)
-        print("Emotion embeddings shape:", emotion_embs.shape)
-        print("Emotion labels shape:", emotion_labs.shape)
-        print("Lengths:", lengths)
-        break
+        quantized_dataloader = DataLoader(
+            quantized_dataset,
+            batch_size=32,
+            shuffle=False,
+            collate_fn=EmbeddingDataset.collate_function
+        )
+
+        print(f"\nComputing statistics for quantized embeddings ({emotion_model})...")
+        quantized_features_list = []
+        for batch in quantized_dataloader:
+            features, _, _, lengths = batch
+            # Collect only the non-padded part of each sample
+            for i, length in enumerate(lengths):
+                quantized_features_list.append(features[i, :, :length])
+        
+        quantized_all = torch.cat(quantized_features_list, dim=-1)
+        quantized_mean = quantized_all.mean(dim=-1)
+        quantized_std = quantized_all.std(dim=-1)
+        print(f"Quantized embeddings - Mean shape: {quantized_mean.shape}, Std shape: {quantized_std.shape}")
+        print(f"Quantized embeddings - Mean: {quantized_mean}")
+        print(f"Quantized embeddings - Std: {quantized_std}")
+
+        # Compute statistics for raw embeddings
+        raw_dataset = EmbeddingDataset(
+            dataset_path=data_path,
+            split="train",
+            input_type="raw_embedding",
+            emotion_model=emotion_model
+        )
+
+        raw_dataloader = DataLoader(
+            raw_dataset,
+            batch_size=32,
+            shuffle=False,
+            collate_fn=EmbeddingDataset.collate_function
+        )
+
+        print(f"\nComputing statistics for raw embeddings ({emotion_model})...")
+        raw_features_list = []
+        for batch in raw_dataloader:
+            features, _, _, lengths = batch
+            # Collect only the non-padded part of each sample
+            for i, length in enumerate(lengths):
+                raw_features_list.append(features[i, :, :length])
+        
+        raw_all = torch.cat(raw_features_list, dim=-1)
+        raw_mean = raw_all.mean(dim=-1)
+        raw_std = raw_all.std(dim=-1)
+        print(f"Raw embeddings - Mean shape: {raw_mean.shape}, Std shape: {raw_std.shape}")
+        print(f"Raw embeddings - Mean: {raw_mean}")
+        print(f"Raw embeddings - Std: {raw_std}")
