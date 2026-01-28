@@ -1,5 +1,6 @@
 import os
 import pickle
+import json
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
@@ -124,11 +125,15 @@ if __name__ == "__main__":
 
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
     emotion_models = ["wavlm", "whisper"]
+    
+    stats = {}
 
     for emotion_model in emotion_models:
         print(f"\n{'='*60}")
         print(f"Computing statistics for {emotion_model.upper()}")
         print(f"{'='*60}")
+        
+        stats[emotion_model] = {}
 
         # Compute statistics for quantized embeddings
         quantized_dataset = EmbeddingDataset(
@@ -160,6 +165,11 @@ if __name__ == "__main__":
         print(f"Quantized embeddings - Mean shape: {quantized_mean.shape}, Std shape: {quantized_std.shape}")
         print(f"Quantized embeddings - Mean (per channel): {quantized_mean}")
         print(f"Quantized embeddings - Std (per channel): {quantized_std}")
+        
+        stats[emotion_model]["quantized_embedding"] = {
+            "mean": quantized_mean.tolist(),
+            "std": quantized_std.tolist()
+        }
 
         # Compute statistics for raw embeddings
         raw_dataset = EmbeddingDataset(
@@ -191,3 +201,16 @@ if __name__ == "__main__":
         print(f"Raw embeddings - Mean shape: {raw_mean.shape}, Std shape: {raw_std.shape}")
         print(f"Raw embeddings - Mean (per channel): {raw_mean}")
         print(f"Raw embeddings - Std (per channel): {raw_std}")
+        
+        stats[emotion_model]["raw_embedding"] = {
+            "mean": raw_mean.tolist(),
+            "std": raw_std.tolist()
+        }
+    
+    # Save statistics to JSON file
+    output_path = "embedding_stats.json"
+    with open(output_path, "w") as f:
+        json.dump(stats, f, indent=2)
+    print(f"\n{'='*60}")
+    print(f"Statistics saved to: {output_path}")
+    print(f"{'='*60}")
