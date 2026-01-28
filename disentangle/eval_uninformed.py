@@ -104,6 +104,20 @@ if __name__ == "__main__":
             emotion_logits_private = emotion_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
             )
+            
+        # Compute stats for debugging
+        raw_mean = quantized_embedding.mean().item()
+        raw_std = quantized_embedding.std().item()
+        private_mean = embedding_private.mean().item()
+        private_std = embedding_private.std().item()
+        self_recon_mean = embedding_self_recon.mean().item()
+        self_recon_std = embedding_self_recon.std().item() 
+        raw_max = quantized_embedding.max().item()
+        private_max = embedding_private.max().item()
+        self_recon_max = embedding_self_recon.max().item()
+        raw_min = quantized_embedding.min().item()
+        private_min = embedding_private.min().item()
+        self_recon_min = embedding_self_recon.min().item()
 
         save_dict = {
             "filename": filename,
@@ -112,6 +126,24 @@ if __name__ == "__main__":
             "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
             "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
             "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
+            "raw_embedding_stats": {
+                "mean": raw_mean,
+                "std": raw_std,
+                "max": raw_max,
+                "min": raw_min,
+            },
+            "private_embedding_stats": {
+                "mean": private_mean,
+                "std": private_std,
+                "max": private_max,
+                "min": private_min,
+            },
+            "self_recon_embedding_stats": {
+                "mean": self_recon_mean,
+                "std": self_recon_std,
+                "max": self_recon_max,
+                "min": self_recon_min,
+            },
         }
         
         if i <= config["num_samples_to_save"]: # Save audio only for first N samples
