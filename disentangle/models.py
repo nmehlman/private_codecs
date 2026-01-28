@@ -82,8 +82,8 @@ if __name__ == "__main__":
     latent_dim = 16
     conditioning_dim = 32
 
-    num_channels_enc = [128, 64, latent_dim]
-    num_channels_dec = [latent_dim, 64, codec_dim]
+    num_channels_enc = [128]
+    num_channels_dec = [128]
 
     ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec, conditioning_dim)
 
