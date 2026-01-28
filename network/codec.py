@@ -189,7 +189,7 @@ if __name__ == "__main__":
     import torchaudio
     import numpy as np
     
-    dataset = ExpressoDataset(data_dir="/data1/open_data/expresso/")
+    dataset = ExpressoDataset(data_dir="/project2/shrikann_35/DATA/expresso/")
 
     samples = torch.stack([dataset[i]["audio"].squeeze() for i in np.random.randint(0, len(dataset), size=3)], dim=0)[:,:]  # 5 seconds
     print(f"Original samples shape: {samples.shape}")
@@ -206,6 +206,6 @@ if __name__ == "__main__":
 
     recon_audio = codec.decode(audio_codes)
 
-    for i in range(samples.shape[0]):
-        torchaudio.save(f"/home/nmehlman/private-codecs/test_audio/original_{i}.wav", samples[i].unsqueeze(0), sample_rate=EXPRESSO_SR)
-        torchaudio.save(f"/home/nmehlman/private-codecs/test_audio/reconstructed_{i}.wav", recon_audio[i].unsqueeze(0), sample_rate=codec.sample_rate)
+    #for i in range(samples.shape[0]):
+    #    torchaudio.save(f"/home/nmehlman/private-codecs/test_audio/original_{i}.wav", samples[i].unsqueeze(0), sample_rate=EXPRESSO_SR)
+    #    torchaudio.save(f"/home/nmehlman/private-codecs/test_audio/reconstructed_{i}.wav", recon_audio[i].unsqueeze(0), sample_rate=codec.sample_rate)
