@@ -44,6 +44,12 @@ if __name__ == "__main__":
     # Create logger (logs are saved to /save_dir/name/version/):
     logger = TensorBoardLogger(**config["tensorboard"])
 
+    # Save config to tensorboard directory
+    config_save_path = os.path.join(logger.log_dir, "config.yaml")
+    os.makedirs(logger.log_dir, exist_ok=True)
+    with open(config_save_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+
     # Make trainer
     trainer = Trainer(logger=logger, strategy=DDPStrategy(find_unused_parameters=True), **config["trainer"])
 
