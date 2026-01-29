@@ -38,7 +38,7 @@ if __name__ == "__main__":
                                 )
     
     # Load dataset stats for normalization
-    stats = load_dataset_stats("expresso", config["dataset"]["codec"], config["dataset"]["input_type"])
+    stats = load_dataset_stats("expresso", "encodec", config["dataset"]["input_type"]) # TODO
 
     # Create Lightning module
     pl_model = EmotionDisentangleModule(
