@@ -25,7 +25,7 @@ lightning:
 emotion_conditioning_model: "wavlm"
 
 # Dataset options:
-data_args:
+dataset:
   data_dir: "/project2/shrikann_35/DATA/expresso/" 
 
 # Dataloader options:

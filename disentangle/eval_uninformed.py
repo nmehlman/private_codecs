@@ -80,7 +80,7 @@ if __name__ == "__main__":
     
     # Load dataset and create dataloader
     dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["data_args"], split="dev") # CHANGEME to test when ready
+    dataset = dataset_class(**config["dataset"], split="dev") # CHANGEME to test when ready
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
