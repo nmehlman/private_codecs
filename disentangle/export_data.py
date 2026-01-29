@@ -38,13 +38,16 @@ if __name__ == "__main__":
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
     
-    print(f"Exporting:\n\tCodec: {config['codec']}\n\tDataset: {config['dataset']}\n\tDevice: {config['device']}")
+    dataset_name = config["dataset_name"]
+    codec_name = config["codec_name"]
+
+    print(f"Exporting:\n\tCodec: {codec_name}\n\tDataset: {dataset_name}\n\tDevice: {config['device']}")
     
     save_root = config["save_path"]
     os.makedirs(save_root, exist_ok=True)
 
-    codec_class, codec_sr = CODECS[config["codec"]]
-    dataset_class, dataset_sr = DATASETS[config["dataset"]]
+    codec_class, codec_sr = CODECS[codec_name]
+    dataset_class, dataset_sr = DATASETS[dataset_name]
 
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
 

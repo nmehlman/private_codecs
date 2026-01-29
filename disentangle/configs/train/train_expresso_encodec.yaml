@@ -6,11 +6,13 @@
 random_seed: 42
 ckpt_path: null
 gpus: "0"
+dataset_name: "expresso"
+codec_name: "encodec"
+input_type: "quantized_embedding"
 
 # Dataset options:
 dataset:
-  dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec" 
-  input_type: "quantized_embedding"
+  dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
   emotion_model: "wavlm"
 
 # Dataloader options:
@@ -50,5 +52,4 @@ tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
   name: "corrected_ae"
   version: null     # Automatic versioning if set to null (recommended)
-
 

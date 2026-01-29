@@ -32,13 +32,20 @@ if __name__ == "__main__":
         pl.seed_everything(config["random_seed"], workers=True)
 
     # Setup dataloaders
+    dataset_name = config["dataset_name"]
+    codec_name = config["codec_name"]
+    input_type = config["input_type"]
+
+    dataset_kwargs = dict(config["dataset"])
+    dataset_kwargs.setdefault("input_type", input_type)
+
     dataloaders = get_dataloaders(
-                                dataset_kwargs=config["dataset"],
+                                dataset_kwargs=dataset_kwargs,
                                 **config["dataloader"]
                                 )
     
     # Load dataset stats for normalization
-    stats = load_dataset_stats("expresso", "encodec", config["dataset"]["input_type"]) # TODO
+    stats = load_dataset_stats(dataset_name, codec_name, input_type)
 
     # Create Lightning module
     pl_model = EmotionDisentangleModule(
@@ -64,4 +71,3 @@ if __name__ == "__main__":
             val_dataloaders = dataloaders["val"],
             ckpt_path = config["ckpt_path"]
         )
-

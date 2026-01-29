@@ -1,7 +1,7 @@
 random_seed: 42
-codec: "encodec"
-dataset: "expresso"
-input_type: "quantized_embeddings"
+dataset_name: "expresso"
+codec_name: "encodec"
+input_type: "quantized_embedding"
 device: "cpu"
 gpus: "0"
 
@@ -32,4 +32,3 @@ data_args:
 dataloader:
   batch_size: 32
   num_workers: 4
-

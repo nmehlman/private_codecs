@@ -1,6 +1,6 @@
 task: "categorical_emotion"
-codec: "bigcodec"
-dataset: "expresso"
+codec_name: "bigcodec"
+dataset_name: "expresso"
 
 data_args:
   data_dir: "/project2/shrikann_35/DATA/expresso/"

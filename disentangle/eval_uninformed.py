@@ -61,7 +61,11 @@ if __name__ == "__main__":
     with open(os.path.join(save_root, "config.yaml"), "w") as f:
         yaml.dump(config, f)
 
-    stats = load_dataset_stats(config["dataset"], config["codec"], config["input_type"])
+    dataset_name = config["dataset_name"]
+    codec_name = config["codec_name"]
+    input_type = config["input_type"]
+
+    stats = load_dataset_stats(dataset_name, codec_name, input_type)
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
@@ -71,11 +75,11 @@ if __name__ == "__main__":
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
     
     # Load speech codec
-    codec_class, codec_sr = CODECS[config["codec"]]
+    codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
     
     # Load dataset and create dataloader
-    dataset_class, dataset_sr = DATASETS[config["dataset"]]
+    dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["data_args"], split="dev") # CHANGEME to test when ready
     
     # Process each sample
