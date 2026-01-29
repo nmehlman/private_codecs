@@ -5,7 +5,7 @@ input_type: "quantized_embedding"
 device: "cpu"
 gpus: "0"
 
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_2/"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/corrected_ae/version_0/"
 ckpt_name: "epoch=99-step=74800.ckpt"
 num_samples_to_save: 10
 

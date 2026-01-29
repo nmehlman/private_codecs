@@ -52,7 +52,7 @@ if __name__ == "__main__":
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
 
     codec = codec_class(device=config["device"])
-    dataset = dataset_class(**config["data_args"])
+    dataset = dataset_class(**config["dataset"])
 
     for sample in tqdm.tqdm(dataset, total=len(dataset), desc="Exporting Data"):
         
