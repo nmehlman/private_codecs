@@ -11,6 +11,7 @@ import os
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.lightning import EmotionDisentangleModule
+from disentangle.misc.load_stats import load_dataset_stats
 
 torch.set_warn_always(False)
 
@@ -35,10 +36,14 @@ if __name__ == "__main__":
                                 dataset_kwargs=config["dataset"],
                                 **config["dataloader"]
                                 )
+    
+    # Load dataset stats for normalization
+    stats = load_dataset_stats("expresso", config["dataset"]["codec"], config["dataset"]["input_type"])
 
     # Create Lightning module
     pl_model = EmotionDisentangleModule(
-        **config["lightning"]
+        **config["lightning"],
+        dataset_stats=stats
     )
 
     # Create logger (logs are saved to /save_dir/name/version/):

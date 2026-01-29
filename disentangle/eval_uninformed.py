@@ -1,6 +1,7 @@
 # TODO embedding support
 
 from disentangle.lightning import EmotionDisentangleModule
+from disentangle.misc.load_stats import load_dataset_stats
 from network.models import VoxProfileEmotionModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
@@ -25,7 +26,7 @@ CODECS = {
 }
 
 DATASETS = {
-    "expresso": (ExpressoDataset, EXPRESSO_SR),
+    "expresso": (ExpressoDataset, EXPRESSO_SR), 
     "msp_podcast": (MSPPodcastDataset, MSP_SR),
 }
 
@@ -59,6 +60,8 @@ if __name__ == "__main__":
     # Save config to save root
     with open(os.path.join(save_root, "config.yaml"), "w") as f:
         yaml.dump(config, f)
+
+    stats = load_dataset_stats(config["dataset"], config["codec"], config["input_type"])
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])

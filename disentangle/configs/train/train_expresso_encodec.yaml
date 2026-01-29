@@ -31,6 +31,7 @@ lightning:
   weight_decay: 0
   adv_annealing_steps: 500
   adv_update_factor: 1
+  normalize_input: true
 
 
 # Training options:

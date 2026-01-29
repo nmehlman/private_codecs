@@ -1,123 +1,209 @@
-import pytorch_lightning as pl
-from disentangle.models import DisentanglementAE, AdversarialClassifier
-import torch
-import torch.nn.functional as F
-from torchmetrics import Accuracy
-from torch.optim.lr_scheduler import LambdaLR
 from math import sin
 
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+from torch.autograd import Function
+from torchmetrics import Accuracy
+
+from disentangle.models import AdversarialClassifier, DisentanglementAE
+
+
+class GradReverse(Function):
+    @staticmethod
+    def forward(ctx, x, lambd: float):
+        ctx.lambd = lambd
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return -ctx.lambd * grad_output, None
+
+
+def grl(x, lambd: float):
+    return GradReverse.apply(x, lambd)
+
+
 class EmotionDisentangleModule(pl.LightningModule):
-    def __init__(self, 
-                 codec_dim: int, 
-                 latent_dim: int, 
-                 enc_channels: list,
-                 dec_channels: list, 
-                 conditioning_dim: int,
-                 num_emotion_classes: int,
-                 ae_kwargs: dict = {},
-                 adversarial_kwargs: dict = {},
-                 adv_loss_weight: float = 1.0,
-                 learning_rate: float = 1e-3,
-                 adv_annealing_steps: int = 0,
-                 adv_update_factor: int = 1,
-                 weight_decay: float = 0):
-        
-        super(EmotionDisentangleModule, self).__init__()
-        
+    def __init__(
+        self,
+        codec_dim: int,
+        latent_dim: int,
+        enc_channels: list,
+        dec_channels: list,
+        conditioning_dim: int,
+        num_emotion_classes: int,
+        ae_kwargs: dict | None = None,
+        adversarial_kwargs: dict = {},
+        adv_loss_weight: float = 1.0,
+        learning_rate: float = 1e-3,
+        adv_annealing_steps: int = 0,
+        adv_update_factor: int = 1,
+        weight_decay: float = 0,
+        normalize_input: bool = True,
+        dataset_stats: dict = {},
+    ):
+        super().__init__()
+
         self.ae = DisentanglementAE(
             codec_dim=codec_dim,
             latent_dim=latent_dim,
             enc_channels=enc_channels,
             dec_channels=dec_channels,
             conditioning_dim=conditioning_dim,
-            **ae_kwargs
+            **ae_kwargs,
         )
 
-        self.adv_classifier = AdversarialClassifier(input_dim=latent_dim,
-                                                    num_classes=num_emotion_classes,
-                                                    **adversarial_kwargs)
-        
+        self.adv_classifier = AdversarialClassifier(
+            input_dim=latent_dim,
+            num_classes=num_emotion_classes,
+            **adversarial_kwargs,
+        )
+
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = False
         self.adv_annealing_steps = adv_annealing_steps
         self.adv_update_factor = adv_update_factor
+        self.normalize_input = normalize_input
+        self.dataset_stats = dataset_stats
         self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
         self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
 
+        if self.normalize_input:
+            assert self.dataset_stats, "Dataset stats must be provided for normalization."
+            
+            mean = torch.tensor(self.dataset_stats["mean"])
+            std = torch.tensor(self.dataset_stats["std"]).clamp_min(1e-6)
+
+            assert mean.shape[0] == codec_dim, "Mean stats dimension does not match codec_dim."
+            assert std.shape[0] == codec_dim, "Std stats dimension does not match codec_dim."
+            
+            self.register_buffer("ds_mean", mean.view(1, -1, 1))
+            self.register_buffer("ds_std", std.view(1, -1, 1))
+
     def forward(self, x, cond):
-        return self.ae(x, cond)
-    
+        if self.normalize_input:
+            x = self._normalize(x)
+
+        x_hat, z = self.ae(x, cond)
+
+        if self.normalize_input:
+            x_hat = self._denormalize(x_hat)
+
+        return x_hat, z
+
+    def _normalize(self, x):
+        mean = self.ds_mean  # (1, codec_dim, 1)
+        std = self.ds_std  # (1, codec_dim, 1)
+        return (x - mean) / std
+
+    def _denormalize(self, x):
+        assert self.dataset_stats, "Dataset stats must be provided for denormalization."
+        mean = self.ds_mean  # (1, codec_dim, 1)
+        std = self.ds_std  # (1, codec_dim, 1)
+        return x * std + mean
+
     def _compute_adv_loss_weight(self):
         # Apply sine annealing for adversarial loss weight
         if self.global_step < self.adv_annealing_steps:
             frac = self.global_step / self.adv_annealing_steps
-            return self.adv_loss_weight * sin(frac * (3.14159265 / 2))**2
+            return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
         else:
             return self.adv_loss_weight
 
+    def _freeze(self, module: torch.nn.Module):
+        module.eval()
+        for param in module.parameters():
+            param.requires_grad_(False)
+
+    def _unfreeze(self, module: torch.nn.Module):
+        module.train()
+        for param in module.parameters():
+            param.requires_grad_(True)
+
     def training_step(self, batch, batch_idx):
-        
         x, emotion_emb, emotion_labs, lengths = batch
-
         opt_ae, opt_adv = self.optimizers()
-        
-        x_hat, z = self(x, emotion_emb)
-        recon_loss = F.mse_loss(x_hat, x)
 
-        # Train adversarial classifier to predict the emotions from the latent code
+        with torch.no_grad():
+            _, z = self(x, emotion_emb)
+
+        # Adversary update steps
         for _ in range(self.adv_update_factor):
             self.toggle_optimizer(opt_adv)
-            adv_logits = self.adv_classifier(z.detach(), lengths)
-            adv_acc = self.train_accuracy(adv_logits, emotion_labs)
+            adv_logits = self.adv_classifier(z, lengths)
             adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+            opt_adv.zero_grad()
             self.manual_backward(adv_loss)
             opt_adv.step()
-            opt_adv.zero_grad()
+            opt_adv.zero_grad(set_to_none=True)
             self.untoggle_optimizer(opt_adv)
 
-            adv_loss_weight = self._compute_adv_loss_weight()
+        adv_acc = self.train_accuracy(adv_logits, emotion_labs)
 
-        # Train AE to reconstruct and simultaneously confuse the adversary
+        # AE update step
+        self._freeze(self.adv_classifier)
         self.toggle_optimizer(opt_ae)
-        fool_logits = self.adv_classifier(z, lengths)
+        x_hat, z = self(x, emotion_emb)
+        adv_loss_weight = self._compute_adv_loss_weight()
+        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+
+        recon_loss = F.mse_loss(x_hat, x)
         fool_loss = F.cross_entropy(fool_logits, emotion_labs)
-        ae_loss = recon_loss - adv_loss_weight * fool_loss
+
+        ae_loss = recon_loss + fool_loss
+
+        opt_ae.zero_grad()
         self.manual_backward(ae_loss)
         opt_ae.step()
-        opt_ae.zero_grad()
         self.untoggle_optimizer(opt_ae)
+        self._unfreeze(self.adv_classifier)
 
         self.log_dict(
             {
-                'train_recon_loss': recon_loss.detach(),
-                'train_adv_loss': adv_loss.detach(),
-                'train_ae_loss': ae_loss.detach(),
-                'train_adv_acc': adv_acc.detach(),
-                'train_fool_loss': fool_loss.detach(),
+                "train_recon_loss": recon_loss.detach(),
+                "train_adv_loss": adv_loss.detach(),
+                "train_ae_loss": ae_loss.detach(),
+                "train_adv_acc": adv_acc.detach(),
+                "train_fool_loss": fool_loss.detach(),
             },
             prog_bar=True,
             on_step=True,
             on_epoch=False,
-            sync_dist=True
+            sync_dist=True,
         )
 
         return ae_loss.detach()
 
-
     def validation_step(self, batch, batch_idx):
-        
         x, emotion_emb, emotion_labs, lengths = batch
         x_hat, z = self(x, emotion_emb)
         recon_loss = F.mse_loss(x_hat, x)
-        self.log('val_recon_loss', recon_loss.detach(), prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_recon_loss",
+            recon_loss.detach(),
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         adv_logits = self.adv_classifier(z, lengths)
         adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
-        self.log('val_adv_acc', adv_acc.detach(), prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_adv_acc",
+            adv_acc.detach(),
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
     def configure_optimizers(self):
-        opt_ae = torch.optim.Adam(self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        opt_ae = torch.optim.Adam(
+            self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+        )
         opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
         return [opt_ae, opt_adv]

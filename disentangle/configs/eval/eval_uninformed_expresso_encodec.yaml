@@ -1,6 +1,7 @@
 random_seed: 42
 codec: "encodec"
 dataset: "expresso"
+input_type: "quantized_embeddings"
 device: "cpu"
 gpus: "0"
 
