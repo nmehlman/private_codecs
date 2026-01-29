@@ -49,16 +49,20 @@ if __name__ == "__main__":
     if config["random_seed"]:
         pl.seed_everything(config["random_seed"], workers=True)
         
-    save_root = config["save_path"]
+    log_dir = config["log_dir"]
+    save_root = os.path.join(log_dir, "eval")
     if not os.path.exists(save_root):
         os.makedirs(save_root)
+    else:
+        raise ValueError(f"Save path {save_root} already exists!")
         
     # Save config to save root
     with open(os.path.join(save_root, "config.yaml"), "w") as f:
         yaml.dump(config, f)
     
     # Load emotion disentanglement model from checkpoint
-    pl_model = EmotionDisentangleModule.load_from_checkpoint(config["ckpt_path"], **config["lightning"]).to(config["device"])
+    ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
+    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, **config["lightning"]).to(config["device"])
     
     # Load VP emotion model (pretrained/fixed)
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
@@ -98,6 +102,10 @@ if __name__ == "__main__":
 
         audio_private = torchaudio.functional.resample(
                     audio_private, orig_freq=codec_sr, new_freq=dataset_sr
+                ).unsqueeze(0)
+        
+        audio_self_recon = torchaudio.functional.resample(
+                    audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
                 ).unsqueeze(0)
                 
         with torch.no_grad():

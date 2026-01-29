@@ -4,7 +4,8 @@ dataset: "expresso"
 device: "cpu"
 gpus: "0"
 
-ckpt_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_2/checkpoints/epoch=99-step=74800.ckpt"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_2/"
+ckpt_name: "epoch=99-step=74800.ckpt"
 num_samples_to_save: 10
 
 lightning:
@@ -31,4 +32,3 @@ dataloader:
   batch_size: 32
   num_workers: 4
 
-save_path: "/project2/shrikann_35/nmehlman/logs/private_codecs/eval/uninformed_expresso_encodec"
