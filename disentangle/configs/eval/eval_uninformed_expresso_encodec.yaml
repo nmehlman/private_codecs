@@ -9,12 +9,12 @@ num_samples_to_save: 10
 
 lightning:
   codec_dim: 128
-  latent_dim: 128
-  enc_channels: [128, 64, 64]
-  dec_channels: [64, 64, 128]
+  latent_dim: 64
+  enc_channels: [256]
+  dec_channels: [256]
   conditioning_dim: 256
   num_emotion_classes: 9
-  adv_loss_weight: 1.0
+  adv_loss_weight: 0.0
   learning_rate: 0.001
   weight_decay: 0
   adv_annealing_steps: 500
