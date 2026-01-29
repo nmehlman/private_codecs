@@ -33,7 +33,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         dec_channels: list,
         conditioning_dim: int,
         num_emotion_classes: int,
-        ae_kwargs: dict | None = None,
+        ae_kwargs: dict = {},
         adversarial_kwargs: dict = {},
         adv_loss_weight: float = 1.0,
         learning_rate: float = 1e-3,
