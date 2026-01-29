@@ -28,7 +28,7 @@ lightning:
   dec_channels: [256]
   conditioning_dim: 256
   num_emotion_classes: 9
-  adv_loss_weight: 0.1
+  adv_loss_weight: 0.01
   learning_rate: 0.001
   weight_decay: 0
   adv_annealing_steps: 500
