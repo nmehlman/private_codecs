@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes 1
 #SBATCH --partition gpu
-#SBATCH --time=1:30:00
+#SBATCH --time=1:08:00
 #SBATCH --account=shrikann_35
 #SBATCH --mem=20G
 #SBATCH --output=/project2/shrikann_35/nmehlman/logs/private_codecs/slurm/%j_output.log
