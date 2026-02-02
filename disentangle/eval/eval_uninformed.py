@@ -124,20 +124,21 @@ if __name__ == "__main__":
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
+        # Resample audios to dataset sr for emotion model
         if isinstance(audio_private, dict):
             for emotion in audio_private:
                 audio_private[emotion] = torchaudio.functional.resample(
                             audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
-                        ).cpu().squeeze()   
+                        )
         else:
             audio_private = torchaudio.functional.resample(
                         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-                    ).cpu().squeeze()   
+                    )   
         
         audio_self_recon = torchaudio.functional.resample(
                     audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
-                ).cpu().squeeze()   
-                
+                )
+        
         with torch.no_grad():
             if isinstance(audio_private, dict):
                 emotion_logits_private = {}
