@@ -12,11 +12,10 @@ def load_dataset_stats(dataset_name, codec, input_type):
     
     return dataset_stats[input_type]
 
-def load_emotion_prototypes(dataset_name, emotion_model):
+def load_emotion_prototypes(dataset_name, split, emotion_model):
     _HERE = Path(__file__).resolve().parent
-    prototypes_path = _HERE / f"emotion_prototypes_{dataset_name}_{emotion_model}.pt"
+    prototypes_path = _HERE / f"emotion_prototypes_{dataset_name}_{split}_{emotion_model}.pt"
     
-    with prototypes_path.open("r") as f:
-        emotion_prototypes = torch.load(f)
+    emotion_prototypes = torch.load(prototypes_path)
     
     return emotion_prototypes

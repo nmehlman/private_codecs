@@ -1,7 +1,7 @@
 # TODO embedding support
 
 from disentangle.lightning import EmotionDisentangleModule
-from disentangle.misc.utils import load_dataset_stats
+from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
 from network.models import VoxProfileEmotionModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
@@ -17,6 +17,15 @@ import tqdm
 import torch
 import torchaudio
 import pickle
+
+def exhaustive_recon(quantized_embedding, prototypes):
+    audio_private = {}
+    for emotion in prototypes:
+        emotion_embedding = prototypes[emotion]
+        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"]) # CHANGEME
+        codes_private, _ = codec.quantize(embedding_private)
+        audio_private[emotion] = codec.decode(codes_private)
+    return audio_private
 
 
 CODECS = {
@@ -65,8 +74,13 @@ if __name__ == "__main__":
     codec_name = config["codec_name"]
     input_type = config["input_type"]
     strategy = config["strategy"]
+    emotion_conditioning_model = config["emotion_conditioning_model"]
+    
+    if strategy not in ["exhaustive"]: # TODO: add support for random and targeted
+        raise ValueError(f"Strategy {strategy} not recognized.")
 
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
+    prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model)
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
@@ -99,12 +113,14 @@ if __name__ == "__main__":
         with torch.no_grad():
             embedding = codec.encode(audio, sr=dataset_sr)
             _, quantized_embedding = codec.quantize(embedding)
-            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[f"{config['emotion_conditioning_model']}_embedding"]) # CHANGEME
-            codes_private, _ = codec.quantize(embedding_private)
-            audio_private = codec.decode(codes_private)
+            
+            if strategy == "exhaustive":
+                audio_private = exhaustive_recon(quantized_embedding, prototypes)
+            else:
+                raise NotImplementedError(f"Strategy {strategy} not implemented (yet).")
 
         with torch.no_grad():
-            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{config['emotion_conditioning_model']}_embedding"]) # DEBUG
+            embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
