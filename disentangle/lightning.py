@@ -206,4 +206,18 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
         opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
-        return [opt_ae, opt_adv]
+        sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt_ae, T_max=max(self.trainer.max_epochs, 1)
+        )
+        sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt_adv, T_max=max(self.trainer.max_epochs, 1)
+        )
+        return [opt_ae, opt_adv], [sched_ae, sched_adv]
+
+    def on_train_epoch_end(self):
+        schedulers = self.lr_schedulers()
+        if isinstance(schedulers, (list, tuple)):
+            for scheduler in schedulers:
+                scheduler.step()
+        elif schedulers is not None:
+            schedulers.step()
