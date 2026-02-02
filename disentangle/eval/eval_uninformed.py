@@ -1,4 +1,4 @@
-# TODO embedding support
+# TODO clean up eval cases
 
 from disentangle.lightning import EmotionDisentangleModule
 from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
@@ -128,15 +128,15 @@ if __name__ == "__main__":
             for emotion in audio_private:
                 audio_private[emotion] = torchaudio.functional.resample(
                             audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
-                        ).unsqueeze(0)
+                        ).cpu().squeeze()   
         else:
             audio_private = torchaudio.functional.resample(
                         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-                    ).unsqueeze(0)
+                    ).cpu().squeeze()   
         
         audio_self_recon = torchaudio.functional.resample(
                     audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
-                ).unsqueeze(0)
+                ).cpu().squeeze()   
                 
         with torch.no_grad():
             if isinstance(audio_private, dict):
@@ -144,10 +144,10 @@ if __name__ == "__main__":
                 for emotion in audio_private:
                     emotion_logits_private[emotion] = emotion_model(
                         audio_private[emotion], sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
-                    )
+                    ).cpu().squeeze()
                 emotion_logits_private = emotion_model(
                     audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
-                )
+                ).cpu().squeeze()
             
         # Compute stats for debugging
         def get_stats(tensor):
@@ -161,19 +161,18 @@ if __name__ == "__main__":
         save_dict = {
             "filename": filename,
             "label": label,
-            "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"].cpu().squeeze(),
-            "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
-            "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
-            "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
+            "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"],
+            "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"],
+            "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"],
+            "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"],
             "raw_embedding_stats": get_stats(quantized_embedding),
-            "private_embedding_stats": get_stats(embedding_private),
             "self_recon_embedding_stats": get_stats(embedding_self_recon),
         }
         
         if i <= config["num_samples_to_save"]: # Save audio only for first N samples
-            save_dict["audio_raw"] = audio.cpu().squeeze()
-            save_dict["audio_private"] = audio_private.cpu().squeeze()
-            save_dict["audio_self_recon"] = audio_self_recon.cpu().squeeze()
+            save_dict["audio_raw"] = audio
+            save_dict["audio_private"] = audio_private
+            save_dict["audio_self_recon"] = audio_self_recon
         
         save_path = os.path.join(save_root, f"{i}_{filename}.pkl")
         with open(save_path, "wb") as f:
