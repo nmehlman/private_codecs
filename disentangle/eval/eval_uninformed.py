@@ -22,7 +22,7 @@ def exhaustive_recon(quantized_embedding, prototypes):
     audio_private = {}
     for emotion in prototypes:
         emotion_embedding = prototypes[emotion].to(quantized_embedding.device)
-        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"]) # CHANGEME
+        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) # CHANGEME
         codes_private, _ = codec.quantize(embedding_private)
         audio_private[emotion] = codec.decode(codes_private)
     return audio_private
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
             )
 
-        with torch.no_grad():
+        with torch.no_grad(): # Run private eval
             embedding = codec.encode(audio, sr=dataset_sr)
             _, quantized_embedding = codec.quantize(embedding)
             
@@ -119,14 +119,20 @@ if __name__ == "__main__":
             else:
                 raise NotImplementedError(f"Strategy {strategy} not implemented (yet).")
 
-        with torch.no_grad():
+        with torch.no_grad(): # Run self-reconstruction eval for reference
             embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
-        audio_private = torchaudio.functional.resample(
-                    audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-                ).unsqueeze(0)
+        if isinstance(audio_private, dict):
+            for emotion in audio_private:
+                audio_private[emotion] = torchaudio.functional.resample(
+                            audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
+                        ).unsqueeze(0)
+            else:
+                audio_private = torchaudio.functional.resample(
+                            audio_private, orig_freq=codec_sr, new_freq=dataset_sr
+                        ).unsqueeze(0)
         
         audio_self_recon = torchaudio.functional.resample(
                     audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
