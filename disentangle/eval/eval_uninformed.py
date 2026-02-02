@@ -1,7 +1,7 @@
 # TODO embedding support
 
 from disentangle.lightning import EmotionDisentangleModule
-from disentangle.misc.load_stats import load_dataset_stats
+from disentangle.misc.utils import load_dataset_stats
 from network.models import VoxProfileEmotionModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
@@ -64,6 +64,7 @@ if __name__ == "__main__":
     dataset_name = config["dataset_name"]
     codec_name = config["codec_name"]
     input_type = config["input_type"]
+    strategy = config["strategy"]
 
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
     
