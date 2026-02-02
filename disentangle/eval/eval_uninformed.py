@@ -97,9 +97,9 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "wavlm_emotion_logits_private": {emotion: logits["wavlm_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
         "raw_embedding_stats": get_stats(quantized_embedding),
         "self_recon_embedding_stats": get_stats(embedding_self_recon),
-        "audio_raw": audio,
+        "audio_raw": audio.cpu().squeeze(),
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
-        "audio_self_recon": audio_self_recon,
+        "audio_self_recon": audio_self_recon.cpu().squeeze(),
     }
     
     return results
