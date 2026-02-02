@@ -22,6 +22,7 @@ def exhaustive_recon(quantized_embedding, prototypes):
     audio_private = {}
     for emotion in prototypes:
         emotion_embedding = prototypes[emotion].to(quantized_embedding.device)
+        print(emotion, emotion_embedding.shape) # DEBUG
         embedding_private, _ = pl_model(quantized_embedding, emotion_embedding.unsqueeze(0)) 
         codes_private, _ = codec.quantize(embedding_private)
         audio_private[emotion] = codec.decode(codes_private)
@@ -121,6 +122,7 @@ if __name__ == "__main__":
 
         with torch.no_grad(): # Run self-reconstruction eval for reference
             embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
+            print(emotion_embedding[f"{emotion_conditioning_model}_embedding"].shape) # DEBUG
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
@@ -129,10 +131,10 @@ if __name__ == "__main__":
                 audio_private[emotion] = torchaudio.functional.resample(
                             audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
                         ).unsqueeze(0)
-            else:
-                audio_private = torchaudio.functional.resample(
-                            audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-                        ).unsqueeze(0)
+        else:
+            audio_private = torchaudio.functional.resample(
+                        audio_private, orig_freq=codec_sr, new_freq=dataset_sr
+                    ).unsqueeze(0)
         
         audio_self_recon = torchaudio.functional.resample(
                     audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
