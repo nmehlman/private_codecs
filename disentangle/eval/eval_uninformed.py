@@ -56,11 +56,11 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     for emotion in audio_private:
         audio_private[emotion] = torchaudio.functional.resample(
             audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
-        )
+        ).unsqueeze(0)
     
     audio_self_recon = torchaudio.functional.resample(
         audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
-    )
+    ).unsqueeze(0)
     
     # Get emotion logits for all private audios
     with torch.no_grad():
