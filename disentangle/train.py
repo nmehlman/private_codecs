@@ -11,7 +11,7 @@ import os
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.lightning import EmotionDisentangleModule
-from disentangle.misc.load_stats import load_dataset_stats
+from disentangle.misc.utils import load_dataset_stats
 
 torch.set_warn_always(False)
 
