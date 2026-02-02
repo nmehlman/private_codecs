@@ -23,22 +23,22 @@ dataloader:
 # Model options:
 lightning:
   codec_dim: 128
-  latent_dim: 64
+  latent_dim: 32
   enc_channels: [256]
   dec_channels: [256]
   conditioning_dim: 256
   num_emotion_classes: 9
-  adv_loss_weight: 0.01
+  adv_loss_weight: 0.02
   learning_rate: 0.001
   weight_decay: 0
-  adv_annealing_steps: 500
-  adv_update_factor: 1
+  adv_annealing_steps: 1000
+  adv_update_factor: 2
   normalize_input: true
 
 
 # Training options:
 trainer:
-  max_epochs: 100
+  max_epochs: 250
   val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
   log_every_n_steps: 10    
   sync_batchnorm: True
