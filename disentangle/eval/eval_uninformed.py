@@ -21,7 +21,7 @@ import pickle
 def exhaustive_recon(quantized_embedding, prototypes):
     audio_private = {}
     for emotion in prototypes:
-        emotion_embedding = prototypes[emotion]
+        emotion_embedding = prototypes[emotion].to(quantized_embedding.device)
         embedding_private, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"]) # CHANGEME
         codes_private, _ = codec.quantize(embedding_private)
         audio_private[emotion] = codec.decode(codes_private)
