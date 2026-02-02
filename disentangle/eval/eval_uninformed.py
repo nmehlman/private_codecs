@@ -21,9 +21,8 @@ import pickle
 def exhaustive_recon(quantized_embedding, prototypes):
     audio_private = {}
     for emotion in prototypes:
-        emotion_embedding = prototypes[emotion].to(quantized_embedding.device)
-        print(emotion, emotion_embedding.shape) # DEBUG
-        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding.unsqueeze(0)) 
+        emotion_embedding = prototypes[emotion].to(quantized_embedding.device).unsqueeze(0)
+        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding) 
         codes_private, _ = codec.quantize(embedding_private)
         audio_private[emotion] = codec.decode(codes_private)
     return audio_private
@@ -122,7 +121,6 @@ if __name__ == "__main__":
 
         with torch.no_grad(): # Run self-reconstruction eval for reference
             embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
-            print(emotion_embedding[f"{emotion_conditioning_model}_embedding"].shape) # DEBUG
             codes_self_recon, _ = codec.quantize(embedding_self_recon)
             audio_self_recon = codec.decode(codes_self_recon)
 
@@ -141,9 +139,15 @@ if __name__ == "__main__":
                 ).unsqueeze(0)
                 
         with torch.no_grad():
-            emotion_logits_private = emotion_model(
-                audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
-            )
+            if isinstance(audio_private, dict):
+                emotion_logits_private = {}
+                for emotion in audio_private:
+                    emotion_logits_private[emotion] = emotion_model(
+                        audio_private[emotion], sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
+                    )
+                emotion_logits_private = emotion_model(
+                    audio_private, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
+                )
             
         # Compute stats for debugging
         def get_stats(tensor):
