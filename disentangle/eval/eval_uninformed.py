@@ -18,6 +18,19 @@ import torch
 import torchaudio
 import pickle
 
+def get_stats(tensor):
+        return {
+            "mean": tensor.mean().item(),
+            "std": tensor.std().item(),
+            "max": tensor.max().item(),
+            "min": tensor.min().item(),
+        }
+
+def compute_different_metric(emb_self_recon, emb_private):
+    """Compute some metric between self-reconstructed and private embeddings."""
+    metric = torch.norm(emb_self_recon - emb_private, p=2).item()/(torch.norm(emb_self_recon, p=2).item() + 1e-8)
+    return metric
+
 
 def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes, dataset_sr, codec_sr, emotion_conditioning_model, config):
     """Process a single sample with exhaustive strategy (all emotion prototypes)."""
@@ -40,11 +53,13 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     # Generate private audio for all emotion prototypes (exhaustive strategy)
     with torch.no_grad():
         audio_private = {}
+        embedding_private = {}
         for emotion in prototypes:
             emotion_embedding_proto = prototypes[emotion].to(quantized_embedding.device).unsqueeze(0)
             embedding_private, _ = pl_model(quantized_embedding, emotion_embedding_proto)
             codes_private, _ = codec.quantize(embedding_private)
             audio_private[emotion] = codec.decode(codes_private)
+            embedding_private[emotion] = embedding_private
     
     # Run self-reconstruction for reference
     with torch.no_grad():
@@ -74,16 +89,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         emotion_logits_self_recon = emotion_model(
             audio_self_recon, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
-        )
-    
-    # Compute stats for debugging
-    def get_stats(tensor):
-        return {
-            "mean": tensor.mean().item(),
-            "std": tensor.std().item(),
-            "max": tensor.max().item(),
-            "min": tensor.min().item(),
-        }
+        )    
     
     # Build results dict - note that emotion_logits_private is a dict of logits
     results = {
@@ -97,9 +103,11 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "wavlm_emotion_logits_private": {emotion: logits["wavlm_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
         "raw_embedding_stats": get_stats(quantized_embedding),
         "self_recon_embedding_stats": get_stats(embedding_self_recon),
+        "private_embedding_stats": {emotion: get_stats(embedding_private) for emotion, embedding_private in embedding_private.items()},
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "difference_metrics": {emotion: compute_different_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embedding_private.items()}
     }
     
     return results
@@ -197,6 +205,8 @@ if __name__ == "__main__":
             "wavlm_emotion_logits_self_recon": results["wavlm_emotion_logits_self_recon"],
             "raw_embedding_stats": results["raw_embedding_stats"],
             "self_recon_embedding_stats": results["self_recon_embedding_stats"],
+            "private_embedding_stats": results["private_embedding_stats"],
+            "difference_metrics": results["difference_metrics"],
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
