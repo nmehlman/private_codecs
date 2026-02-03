@@ -17,6 +17,7 @@ import tqdm
 import torch
 import torchaudio
 import pickle
+import random
 
 def get_stats(tensor):
         return {
@@ -112,6 +113,164 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     
     return results
 
+def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, dataset_sr, codec_sr, emotion_conditioning_model, config):
+    """Process a single sample with a specific target emotion prototype."""
+    audio = sample["audio"].to(config["device"])
+    label = sample["emotion"]
+    filename = sample["filename"]
+    length = sample["length"]
+    target_emotion = config["target_emotion"]
+    
+    # Get emotion embedding from raw audio
+    with torch.no_grad():
+        emotion_logits_raw, emotion_embedding = emotion_model(
+            audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+        )
+    
+    # Encode audio with codec
+    with torch.no_grad():
+        embedding = codec.encode(audio, sr=dataset_sr)
+        _, quantized_embedding = codec.quantize(embedding)
+    
+    # Generate private audio with target emotion prototype only
+    with torch.no_grad():
+        emotion_embedding_proto = prototypes[target_emotion].to(quantized_embedding.device).unsqueeze(0)
+        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding_proto)
+        codes_private, _ = codec.quantize(embedding_private)
+        audio_private = codec.decode(codes_private)
+    
+    # Run self-reconstruction for reference
+    with torch.no_grad():
+        embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
+        codes_self_recon, _ = codec.quantize(embedding_self_recon)
+        audio_self_recon = codec.decode(codes_self_recon)
+    
+    # Resample audios to dataset sr for emotion model
+    audio_private = torchaudio.functional.resample(
+        audio_private, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    audio_self_recon = torchaudio.functional.resample(
+        audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    # Get emotion logits for private audio
+    with torch.no_grad():
+        emotion_logits_private = emotion_model(
+            audio_private, sr=dataset_sr, return_embeddings=False, 
+            lengths=torch.tensor([length]).to(config["device"])
+        )
+        
+        emotion_logits_self_recon = emotion_model(
+            audio_self_recon, sr=dataset_sr, return_embeddings=False,
+            lengths=torch.tensor([length]).to(config["device"])
+        )    
+    
+    # Build results dict
+    results = {
+        "filename": filename,
+        "label": label,
+        "target_emotion": target_emotion,
+        "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_self_recon": emotion_logits_self_recon["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
+        "raw_embedding_stats": get_stats(quantized_embedding),
+        "self_recon_embedding_stats": get_stats(embedding_self_recon),
+        "private_embedding_stats": get_stats(embedding_private),
+        "audio_raw": audio.cpu().squeeze(),
+        "audio_private": audio_private.cpu().squeeze(),
+        "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "difference_metric": compute_different_metric(embedding_self_recon, embedding_private)
+    }
+    
+    return results
+
+def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, dataset_sr, codec_sr, emotion_conditioning_model, config):
+    """Process a single sample with a randomly selected target emotion (different from true emotion)."""
+    
+    audio = sample["audio"].to(config["device"])
+    label = sample["emotion"]
+    filename = sample["filename"]
+    length = sample["length"]
+    
+    # Get emotion name from label int
+    emotion_names = list(prototypes.keys())
+    label_emotion = emotion_names[label]
+    
+    # Select random target emotion different from true emotion
+    available_emotions = [e for e in prototypes.keys() if e != label_emotion]
+    target_emotion = random.choice(available_emotions)
+    
+    # Get emotion embedding from raw audio
+    with torch.no_grad():
+        emotion_logits_raw, emotion_embedding = emotion_model(
+            audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+        )
+    
+    # Encode audio with codec
+    with torch.no_grad():
+        embedding = codec.encode(audio, sr=dataset_sr)
+        _, quantized_embedding = codec.quantize(embedding)
+    
+    # Generate private audio with target emotion prototype only
+    with torch.no_grad():
+        emotion_embedding_proto = prototypes[target_emotion].to(quantized_embedding.device).unsqueeze(0)
+        embedding_private, _ = pl_model(quantized_embedding, emotion_embedding_proto)
+        codes_private, _ = codec.quantize(embedding_private)
+        audio_private = codec.decode(codes_private)
+    
+    # Run self-reconstruction for reference
+    with torch.no_grad():
+        embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
+        codes_self_recon, _ = codec.quantize(embedding_self_recon)
+        audio_self_recon = codec.decode(codes_self_recon)
+    
+    # Resample audios to dataset sr for emotion model
+    audio_private = torchaudio.functional.resample(
+        audio_private, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    audio_self_recon = torchaudio.functional.resample(
+        audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    # Get emotion logits for private audio
+    with torch.no_grad():
+        emotion_logits_private = emotion_model(
+            audio_private, sr=dataset_sr, return_embeddings=False, 
+            lengths=torch.tensor([length]).to(config["device"])
+        )
+        
+        emotion_logits_self_recon = emotion_model(
+            audio_self_recon, sr=dataset_sr, return_embeddings=False,
+            lengths=torch.tensor([length]).to(config["device"])
+        )    
+    
+    # Build results dict
+    results = {
+        "filename": filename,
+        "label": label,
+        "target_emotion": target_emotion,
+        "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_self_recon": emotion_logits_self_recon["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
+        "raw_embedding_stats": get_stats(quantized_embedding),
+        "self_recon_embedding_stats": get_stats(embedding_self_recon),
+        "private_embedding_stats": get_stats(embedding_private),
+        "audio_raw": audio.cpu().squeeze(),
+        "audio_private": audio_private.cpu().squeeze(),
+        "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "difference_metric": compute_different_metric(embedding_self_recon, embedding_private)
+    }
+    
+    return results
+
 
 CODECS = {
     "encodec": (EnCodec, ENCODEC_SR),
@@ -161,7 +320,7 @@ if __name__ == "__main__":
     strategy = config["strategy"]
     emotion_conditioning_model = config["emotion_conditioning_model"]
     
-    if strategy not in ["exhaustive"]: # TODO: add support for random and targeted
+    if strategy not in ["exhaustive", "targeted", "random"]:
         raise ValueError(f"Strategy {strategy} not recognized.")
 
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
@@ -187,6 +346,17 @@ if __name__ == "__main__":
         
         if strategy == "exhaustive":
             results = process_sample_exhaustive(
+                sample, codec, pl_model, emotion_model, prototypes, 
+                dataset_sr, codec_sr, emotion_conditioning_model, config
+            )
+        elif strategy == "targeted":
+            assert "target_emotion" in config, "Target emotion must be specified for targeted strategy."
+            results = process_sample_targeted(
+                sample, codec, pl_model, emotion_model, prototypes, 
+                dataset_sr, codec_sr, emotion_conditioning_model, config
+            )
+        elif strategy == "random":
+            results = process_sample_random(
                 sample, codec, pl_model, emotion_model, prototypes, 
                 dataset_sr, codec_sr, emotion_conditioning_model, config
             )

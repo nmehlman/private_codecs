@@ -8,7 +8,8 @@ gpus: "0"
 log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/smaller_bottleneck/version_0"
 ckpt_name: "epoch=84-step=95370.ckpt"
 num_samples_to_save: 10
-strategy: "exhaustive" # "exhaustive", "random", or one specific emotion
+strategy: "exhaustive" # "exhaustive", "targeted", "random"
+target_emotion: "neutral"  # Used only if strategy is "targeted"
 
 lightning:
   codec_dim: 128
