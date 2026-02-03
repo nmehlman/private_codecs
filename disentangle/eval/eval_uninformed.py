@@ -169,7 +169,7 @@ if __name__ == "__main__":
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
-    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **config["lightning"]).to(config["device"])
+    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **config["lightning"]).to(config["device"]).eval()
     
     # Load VP emotion model (pretrained/fixed)
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)

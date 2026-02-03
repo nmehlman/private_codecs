@@ -11,6 +11,7 @@ class DisentanglementAE(nn.Module):
                  enc_channels: list,
                  dec_channels: list, 
                  conditioning_dim: int, 
+                 conditioning_dropout: float = 0.0, 
                  **kwargs):
         
         super(DisentanglementAE, self).__init__()
@@ -18,8 +19,19 @@ class DisentanglementAE(nn.Module):
         self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, **kwargs)
         self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, causal=False, disable_final_activation=True, **kwargs)
 
+        self.conditioning_dropout = conditioning_dropout
+
     def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
+        
         z = self.encoder(codec_output)
+        
+        if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
+            b = emotion_embed.size(0)
+            do_swap = (torch.rand(b, device=emotion_embed.device) < self.conditioning_dropout)
+            perm = torch.randperm(b, device=emotion_embed.device)
+            swapped = emotion_embed[perm]
+            emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
+        
         x_hat = self.decoder(z, conditioning=emotion_embed)
         return x_hat, z
     

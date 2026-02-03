@@ -25,9 +25,11 @@ lightning:
   codec_dim: 128
   latent_dim: 64
   enc_channels: [256]
-  dec_channels: [256]
+  dec_channels: [128]
   conditioning_dim: 256
+  conditioning_dropout: 0.4
   num_emotion_classes: 9
+  adversarial_channels: [64, 64, 64]
   adv_loss_weight: 0.02
   learning_rate: 0.001
   weight_decay: 0

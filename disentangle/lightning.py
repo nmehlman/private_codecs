@@ -32,7 +32,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         enc_channels: list,
         dec_channels: list,
         conditioning_dim: int,
-        num_emotion_classes: int,
+        conditioning_dropout: float = 0.0,
+        num_emotion_classes: int = 9,
         ae_kwargs: dict = {},
         adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
@@ -42,7 +43,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         adv_update_factor: int = 1,
         weight_decay: float = 0,
         normalize_input: bool = True,
-        dataset_stats: dict = {},
+        dataset_stats: dict = {}
     ):
         super().__init__()
 
@@ -52,6 +53,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             enc_channels=enc_channels,
             dec_channels=dec_channels,
             conditioning_dim=conditioning_dim,
+            conditioning_dropout=conditioning_dropout,
             **ae_kwargs,
         )
 
