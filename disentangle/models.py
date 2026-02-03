@@ -43,7 +43,7 @@ class AdversarialClassifier(nn.Module):
         
         self.encoder = TCN(
             num_inputs=input_dim,
-            num_channels=[128, 128, 128],
+            num_channels=[64, 64, 64],
             kernel_size=3,
             use_norm="layer_norm",
             dropout=0.2,
