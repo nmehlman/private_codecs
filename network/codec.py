@@ -72,8 +72,8 @@ class EnCodec:
 
 class HifiCodec:
     def __init__(self, 
-                 config_path: str = "/home/nmehlman/emo-steer/AcademiCodec/egs/HiFi-Codec-16k-320d/config_16k_320d.json", 
-                 model_path: str = "/data1/nmehlman/models/HiFi-Codec/HiFi-Codec-16k-320d", 
+                 config_path: str = "/home1/nmehlman/private_codecs/AcademiCodec/egs/HiFi-Codec-16k-320d//config_16k_320d.json", 
+                 model_path: str = "/project2/shrikann_35/nmehlman/models/HiFi-Codec-16k-320d", 
                  device: str = "cpu", 
                  *args, 
                  **kwargs
