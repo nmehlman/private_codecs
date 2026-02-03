@@ -22,6 +22,7 @@ lightning:
   weight_decay: 0
   adv_annealing_steps: 500
   adv_update_factor: 1
+  adversarial_channels: [64, 64, 64]
 
 emotion_conditioning_model: "wavlm"
 

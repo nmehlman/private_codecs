@@ -34,6 +34,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         conditioning_dim: int,
         num_emotion_classes: int,
         ae_kwargs: dict = {},
+        adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
         adv_loss_weight: float = 1.0,
         learning_rate: float = 1e-3,
@@ -57,6 +58,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_classifier = AdversarialClassifier(
             input_dim=latent_dim,
             num_classes=num_emotion_classes,
+            channels=adversarial_channels,
             **adversarial_kwargs,
         )
 
