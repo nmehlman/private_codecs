@@ -183,7 +183,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
-        "difference_metric": compute_different_metric(embedding_self_recon, embedding_private)
+        "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
     }
     
     return results
@@ -266,7 +266,7 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
-        "difference_metric": compute_different_metric(embedding_self_recon, embedding_private)
+        "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
     }
     
     return results
