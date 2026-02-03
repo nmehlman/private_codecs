@@ -17,18 +17,18 @@ dataset:
 
 # Dataloader options:
 dataloader:
-  batch_size: 32
+  batch_size: 64
   num_workers: 4
 
 # Model options:
 lightning:
   codec_dim: 128
-  latent_dim: 32
+  latent_dim: 64
   enc_channels: [256]
   dec_channels: [256]
   conditioning_dim: 256
   num_emotion_classes: 9
-  adv_loss_weight: 0.01
+  adv_loss_weight: 0.02
   learning_rate: 0.001
   weight_decay: 0
   adv_annealing_steps: 1000
@@ -50,6 +50,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "smaller_bottleneck"
+  name: "more_weight"
   version: null     # Automatic versioning if set to null (recommended)
 

@@ -43,7 +43,7 @@ class AdversarialClassifier(nn.Module):
         
         self.encoder = TCN(
             num_inputs=input_dim,
-            num_channels=[64, 64, 64],
+            num_channels=[128, 128, 128],
             kernel_size=3,
             use_norm="layer_norm",
             dropout=0.2,
@@ -53,8 +53,8 @@ class AdversarialClassifier(nn.Module):
             **kwargs
         )
 
-        self.pooling = AttentionPooling(input_dim=64)
-        self.fc = torch.nn.Linear(64, num_classes)
+        self.pooling = AttentionPooling(input_dim=128)
+        self.fc = torch.nn.Linear(128, num_classes)
 
     def forward(self, x: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         
