@@ -53,13 +53,13 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     # Generate private audio for all emotion prototypes (exhaustive strategy)
     with torch.no_grad():
         audio_private = {}
-        embedding_private = {}
+        embeddings_private = {}
         for emotion in prototypes:
             emotion_embedding_proto = prototypes[emotion].to(quantized_embedding.device).unsqueeze(0)
             embedding_private, _ = pl_model(quantized_embedding, emotion_embedding_proto)
             codes_private, _ = codec.quantize(embedding_private)
             audio_private[emotion] = codec.decode(codes_private)
-            embedding_private[emotion] = embedding_private
+            embeddings_private[emotion] = embedding_private
     
     # Run self-reconstruction for reference
     with torch.no_grad():
@@ -103,11 +103,11 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "wavlm_emotion_logits_private": {emotion: logits["wavlm_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
         "raw_embedding_stats": get_stats(quantized_embedding),
         "self_recon_embedding_stats": get_stats(embedding_self_recon),
-        "private_embedding_stats": {emotion: get_stats(embedding_private) for emotion, embedding_private in embedding_private.items()},
+        "private_embedding_stats": {emotion: get_stats(embedding_private) for emotion, embedding_private in embeddings_private.items()},
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
-        "difference_metrics": {emotion: compute_different_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embedding_private.items()}
+        "difference_metrics": {emotion: compute_different_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()}
     }
     
     return results
