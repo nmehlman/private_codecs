@@ -49,7 +49,7 @@ class AttentionPooling(torch.nn.Module):
         return weighted_sum
 
 class AdversarialClassifier(nn.Module):
-    def __init__(self, input_dim: int, num_classes: int, channels: list = [128, 128, 128], **kwargs):
+    def __init__(self, input_dim: int, num_classes: int, channels: list = [64, 64, 64], **kwargs):
         
         super(AdversarialClassifier, self).__init__()
         
