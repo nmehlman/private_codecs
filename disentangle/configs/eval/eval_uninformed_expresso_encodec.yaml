@@ -5,8 +5,8 @@ input_type: "quantized_embedding"
 device: "cuda"
 gpus: "0"
 
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/more_weight/version_0"
-ckpt_name: "epoch=225-step=253572.ckpt"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/smaller_bottleneck/version_0"
+ckpt_name: "epoch=84-step=95370.ckpt"
 num_samples_to_save: 10
 strategy: "exhaustive" # "exhaustive", "random", or one specific emotion
 
