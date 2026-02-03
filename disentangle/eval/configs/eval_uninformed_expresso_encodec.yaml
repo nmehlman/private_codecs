@@ -8,8 +8,8 @@ gpus: "0"
 log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/smaller_bottleneck/version_0"
 ckpt_name: "epoch=84-step=95370.ckpt"
 num_samples_to_save: 10
-strategy: "random" # "exhaustive", "targeted", "random"
-target_emotion: "Neutral"  # Used only if strategy is "targeted"
+strategy: "exhaustive" # "exhaustive", "targeted", "random"; target_emotion used only if strategy is "targeted"
+target_emotion: "Neutral"  # Emotion classes: Anger(0), Contempt(1), Disgust(2), Fear(3), Happiness(4), Neutral(5), Sadness(6), Surprise(7), Other(8)
 
 lightning:
   codec_dim: 128
