@@ -5,25 +5,24 @@ input_type: "quantized_embedding"
 device: "cuda"
 gpus: "0"
 
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/smaller_bottleneck/version_0"
-ckpt_name: "epoch=84-step=95370.ckpt"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_3/checkpoints"
+ckpt_name: "epoch=149-step=28050.ckpt"
 num_samples_to_save: 10
 strategy: "exhaustive" # "exhaustive", "targeted", "random"; target_emotion used only if strategy is "targeted"
 target_emotion: "Neutral"  # Emotion classes: Anger(0), Contempt(1), Disgust(2), Fear(3), Happiness(4), Neutral(5), Sadness(6), Surprise(7), Other(8)
 
 lightning:
   codec_dim: 128
-  latent_dim: 32
-  enc_channels: [256]
-  dec_channels: [256]
+  latent_dim: 64
+  enc_channels: [128, 128]
+  dec_channels: [64, 64]
   conditioning_dim: 256
+  conditioning_dropout: 0.4
   num_emotion_classes: 9
-  adv_loss_weight: 0.0
   learning_rate: 0.001
   weight_decay: 0
-  adv_annealing_steps: 500
-  adv_update_factor: 1
-  adversarial_channels: [64, 64, 64]
+  normalize_input: true
+  use_adversarial: false
 
 emotion_conditioning_model: "wavlm"
 
