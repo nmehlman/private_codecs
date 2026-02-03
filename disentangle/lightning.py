@@ -43,7 +43,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         adv_update_factor: int = 1,
         weight_decay: float = 0,
         normalize_input: bool = True,
-        dataset_stats: dict = {}
+        dataset_stats: dict = {},
+        use_adversarial: bool = True
     ):
         super().__init__()
 
@@ -57,23 +58,28 @@ class EmotionDisentangleModule(pl.LightningModule):
             **ae_kwargs,
         )
 
-        self.adv_classifier = AdversarialClassifier(
-            input_dim=latent_dim,
-            num_classes=num_emotion_classes,
-            channels=adversarial_channels,
-            **adversarial_kwargs,
-        )
+        self.use_adversarial = use_adversarial
+        if self.use_adversarial:
+            self.adv_classifier = AdversarialClassifier(
+                input_dim=latent_dim,
+                num_classes=num_emotion_classes,
+                channels=adversarial_channels,
+                **adversarial_kwargs,
+            )
+        else:
+            self.adv_classifier = None
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
-        self.automatic_optimization = False
+        self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
-        self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
-        self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
+        if self.use_adversarial:
+            self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
+            self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
 
         if self.normalize_input:
             assert self.dataset_stats, "Dataset stats must be provided for normalization."
@@ -129,57 +135,78 @@ class EmotionDisentangleModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, emotion_emb, emotion_labs, lengths = batch
-        opt_ae, opt_adv = self.optimizers()
+        
+        if not self.use_adversarial:
+            # AE-only training with automatic optimization
+            x_hat, z = self(x, emotion_emb)
+            recon_loss = F.mse_loss(x_hat, x)
+            
+            self.log_dict(
+                {
+                    "train_recon_loss": recon_loss.detach(),
+                },
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+                sync_dist=True,
+            )
+            
+            return recon_loss
+        
+        else:
+        
+            # Adversarial training with manual optimization
+            opt_ae, opt_adv = self.optimizers()
 
-        with torch.no_grad():
-            _, z = self(x, emotion_emb)
+            with torch.no_grad():
+                _, z = self(x, emotion_emb)
 
-        # Adversary update steps
-        for _ in range(self.adv_update_factor):
-            self.toggle_optimizer(opt_adv)
-            adv_logits = self.adv_classifier(z, lengths)
-            adv_loss = F.cross_entropy(adv_logits, emotion_labs)
-            opt_adv.zero_grad()
-            self.manual_backward(adv_loss)
-            opt_adv.step()
-            opt_adv.zero_grad(set_to_none=True)
-            self.untoggle_optimizer(opt_adv)
+            # Adversary update steps
+            for _ in range(self.adv_update_factor):
+                self.toggle_optimizer(opt_adv)
+                adv_logits = self.adv_classifier(z, lengths)
+                adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+                opt_adv.zero_grad()
+                self.manual_backward(adv_loss)
+                opt_adv.step()
+                opt_adv.zero_grad(set_to_none=True)
+                self.untoggle_optimizer(opt_adv)
+            
+            adv_acc = self.train_accuracy(adv_logits, emotion_labs)
 
-        adv_acc = self.train_accuracy(adv_logits, emotion_labs)
+            # AE update step
+            self._freeze(self.adv_classifier)
+            self.toggle_optimizer(opt_ae)
+            x_hat, z = self(x, emotion_emb)
+            adv_loss_weight = self._compute_adv_loss_weight()
+            fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
 
-        # AE update step
-        self._freeze(self.adv_classifier)
-        self.toggle_optimizer(opt_ae)
-        x_hat, z = self(x, emotion_emb)
-        adv_loss_weight = self._compute_adv_loss_weight()
-        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+            recon_loss = F.mse_loss(x_hat, x)
+            fool_loss = F.cross_entropy(fool_logits, emotion_labs)
 
-        recon_loss = F.mse_loss(x_hat, x)
-        fool_loss = F.cross_entropy(fool_logits, emotion_labs)
+            ae_loss = recon_loss + fool_loss
 
-        ae_loss = recon_loss + fool_loss
+            opt_ae.zero_grad()
+            self.manual_backward(ae_loss)
+            opt_ae.step()
+            self.untoggle_optimizer(opt_ae)
+            self._unfreeze(self.adv_classifier)
 
-        opt_ae.zero_grad()
-        self.manual_backward(ae_loss)
-        opt_ae.step()
-        self.untoggle_optimizer(opt_ae)
-        self._unfreeze(self.adv_classifier)
+            self.log_dict(
+                {
+                    "train_recon_loss": recon_loss.detach(),
+                    "train_adv_loss": adv_loss.detach(),
+                    "train_ae_loss": ae_loss.detach(),
+                    "train_adv_acc": adv_acc.detach(),
+                    "train_fool_loss": fool_loss.detach(),
+                },
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+                sync_dist=True,
+            )
 
-        self.log_dict(
-            {
-                "train_recon_loss": recon_loss.detach(),
-                "train_adv_loss": adv_loss.detach(),
-                "train_ae_loss": ae_loss.detach(),
-                "train_adv_acc": adv_acc.detach(),
-                "train_fool_loss": fool_loss.detach(),
-            },
-            prog_bar=True,
-            on_step=True,
-            on_epoch=False,
-            sync_dist=True,
-        )
-
-        return ae_loss.detach()
+            return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
         x, emotion_emb, emotion_labs, lengths = batch
@@ -194,31 +221,43 @@ class EmotionDisentangleModule(pl.LightningModule):
             sync_dist=True,
         )
 
-        adv_logits = self.adv_classifier(z, lengths)
-        adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
-        self.log(
-            "val_adv_acc",
-            adv_acc.detach(),
-            prog_bar=True,
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-        )
+        if self.use_adversarial:
+            adv_logits = self.adv_classifier(z, lengths)
+            adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
+            self.log(
+                "val_adv_acc",
+                adv_acc.detach(),
+                prog_bar=True,
+                on_step=False,
+                on_epoch=True,
+                sync_dist=True,
+            )
 
     def configure_optimizers(self):
+        
         opt_ae = torch.optim.Adam(
             self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
-        opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
         sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt_ae, T_max=max(self.trainer.max_epochs, 1)
         )
-        sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt_adv, T_max=max(self.trainer.max_epochs, 1)
-        )
-        return [opt_ae, opt_adv], [sched_ae, sched_adv]
+        
+        if not self.use_adversarial:
+            # AE-only training: return single optimizer and scheduler
+            return {"optimizer": opt_ae, "lr_scheduler": sched_ae}
+        
+        else:
+            # Adversarial training: return both optimizers and schedulers
+            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
+            sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
+                opt_adv, T_max=max(self.trainer.max_epochs, 1)
+            )
+            return [opt_ae, opt_adv], [sched_ae, sched_adv]
 
     def on_train_epoch_end(self):
+        if not self.use_adversarial:
+            # Automatic optimization handles scheduler stepping
+            return
         schedulers = self.lr_schedulers()
         if isinstance(schedulers, (list, tuple)):
             for scheduler in schedulers:
