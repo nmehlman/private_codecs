@@ -44,7 +44,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         weight_decay: float = 0,
         normalize_input: bool = True,
         dataset_stats: dict = {},
-        use_adversarial: bool = True
+        use_adversarial: bool = True,
+        lr_scheduling: bool = True,
     ):
         super().__init__()
 
@@ -77,6 +78,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
+        self.lr_scheduling = lr_scheduling
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
             self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
@@ -238,21 +240,31 @@ class EmotionDisentangleModule(pl.LightningModule):
         opt_ae = torch.optim.Adam(
             self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
-        sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt_ae, T_max=max(self.trainer.max_epochs, 1)
-        )
         
         if not self.use_adversarial:
             # AE-only training: return single optimizer and scheduler
-            return {"optimizer": opt_ae, "lr_scheduler": sched_ae}
+            if self.lr_scheduling:
+                sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    opt_ae, T_max=max(self.trainer.max_epochs, 1)
+                )
+                return {"optimizer": opt_ae, "lr_scheduler": sched_ae}
+            else:
+                return {"optimizer": opt_ae}
         
         else:
             # Adversarial training: return both optimizers and schedulers
             opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
-            sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
-                opt_adv, T_max=max(self.trainer.max_epochs, 1)
-            )
-            return [opt_ae, opt_adv], [sched_ae, sched_adv]
+            
+            if self.lr_scheduling:
+                sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    opt_ae, T_max=max(self.trainer.max_epochs, 1)
+                )
+                sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    opt_adv, T_max=max(self.trainer.max_epochs, 1)
+                )
+                return [opt_ae, opt_adv], [sched_ae, sched_adv]
+            else:
+                return [opt_ae, opt_adv]
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
