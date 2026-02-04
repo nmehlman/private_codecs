@@ -29,7 +29,7 @@ lightning:
   conditioning_dim: 256
   conditioning_dropout: 0.0
   num_emotion_classes: 9
-  learning_rate: 0.0025
+  learning_rate: 0.002
   weight_decay: 0
   normalize_input: true
   use_adversarial: false
@@ -38,7 +38,7 @@ lightning:
 
 # Training options:
 trainer:
-  max_epochs: 150
+  max_epochs: 500
   val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
   log_every_n_steps: 10    
   sync_batchnorm: True
