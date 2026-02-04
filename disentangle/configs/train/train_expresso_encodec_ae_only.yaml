@@ -24,15 +24,16 @@ dataloader:
 lightning:
   codec_dim: 128
   latent_dim: 64
-  enc_channels: [128, 128]
-  dec_channels: [64, 64]
+  enc_channels: [256, 256]
+  dec_channels: [256, 256]
   conditioning_dim: 256
-  conditioning_dropout: 0.4
+  conditioning_dropout: 0.0
   num_emotion_classes: 9
-  learning_rate: 0.001
+  learning_rate: 0.0025
   weight_decay: 0
   normalize_input: true
   use_adversarial: false
+  lr_scheduling: true
 
 
 # Training options:
@@ -49,6 +50,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "ae_only"
+  name: "recon_tests"
   version: null     # Automatic versioning if set to null (recommended)
 
