@@ -8,4 +8,4 @@ dataset:
 
 device: "cuda"
 
-save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/hificodec/test"
+save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/hificodec/train"
