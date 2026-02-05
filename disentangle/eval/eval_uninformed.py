@@ -68,6 +68,10 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         codes_self_recon, _ = codec.quantize(embedding_self_recon)
         audio_self_recon = codec.decode(codes_self_recon)
     
+    # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
+    with torch.no_grad():
+        audio_codec_only = codec.decode(quantized_embedding)
+    
     # Resample audios to dataset sr for emotion model
     for emotion in audio_private:
         audio_private[emotion] = torchaudio.functional.resample(
@@ -76,6 +80,10 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     
     audio_self_recon = torchaudio.functional.resample(
         audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    audio_codec_only = torchaudio.functional.resample(
+        audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
     
     # Get emotion logits for all private audios
@@ -90,6 +98,11 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         emotion_logits_self_recon = emotion_model(
             audio_self_recon, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
+        )
+        
+        emotion_logits_codec_only = emotion_model(
+            audio_codec_only, sr=dataset_sr, return_embeddings=False,
+            lengths=torch.tensor([length]).to(config["device"])
         )    
     
     # Build results dict - note that emotion_logits_private is a dict of logits
@@ -100,6 +113,8 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_self_recon": emotion_logits_self_recon["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_codec_only": emotion_logits_codec_only["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_codec_only": emotion_logits_codec_only["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_private": {emotion: logits["whisper_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
         "wavlm_emotion_logits_private": {emotion: logits["wavlm_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
         "raw_embedding_stats": get_stats(quantized_embedding),
@@ -108,6 +123,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": {emotion: compute_different_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()}
     }
     
@@ -145,6 +161,10 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         codes_self_recon, _ = codec.quantize(embedding_self_recon)
         audio_self_recon = codec.decode(codes_self_recon)
     
+    # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
+    with torch.no_grad():
+        audio_codec_only = codec.decode(quantized_embedding)
+    
     # Resample audios to dataset sr for emotion model
     audio_private = torchaudio.functional.resample(
         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
@@ -152,6 +172,10 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
     
     audio_self_recon = torchaudio.functional.resample(
         audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    audio_codec_only = torchaudio.functional.resample(
+        audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
     
     # Get emotion logits for private audio
@@ -164,6 +188,11 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         emotion_logits_self_recon = emotion_model(
             audio_self_recon, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
+        )
+        
+        emotion_logits_codec_only = emotion_model(
+            audio_codec_only, sr=dataset_sr, return_embeddings=False,
+            lengths=torch.tensor([length]).to(config["device"])
         )    
     
     # Build results dict
@@ -175,6 +204,8 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_self_recon": emotion_logits_self_recon["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_codec_only": emotion_logits_codec_only["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_codec_only": emotion_logits_codec_only["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
         "raw_embedding_stats": get_stats(quantized_embedding),
@@ -183,6 +214,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
     }
     
@@ -228,6 +260,10 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         codes_self_recon, _ = codec.quantize(embedding_self_recon)
         audio_self_recon = codec.decode(codes_self_recon)
     
+    # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
+    with torch.no_grad():
+        audio_codec_only = codec.decode(quantized_embedding)
+    
     # Resample audios to dataset sr for emotion model
     audio_private = torchaudio.functional.resample(
         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
@@ -235,6 +271,10 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
     
     audio_self_recon = torchaudio.functional.resample(
         audio_self_recon, orig_freq=codec_sr, new_freq=dataset_sr
+    ).unsqueeze(0)
+    
+    audio_codec_only = torchaudio.functional.resample(
+        audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
     
     # Get emotion logits for private audio
@@ -247,6 +287,11 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         emotion_logits_self_recon = emotion_model(
             audio_self_recon, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
+        )
+        
+        emotion_logits_codec_only = emotion_model(
+            audio_codec_only, sr=dataset_sr, return_embeddings=False,
+            lengths=torch.tensor([length]).to(config["device"])
         )    
     
     # Build results dict
@@ -258,6 +303,8 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_self_recon": emotion_logits_self_recon["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
+        "whisper_emotion_logits_codec_only": emotion_logits_codec_only["whisper_logits"].cpu().squeeze(),
+        "wavlm_emotion_logits_codec_only": emotion_logits_codec_only["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
         "raw_embedding_stats": get_stats(quantized_embedding),
@@ -266,6 +313,7 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         "audio_raw": audio.cpu().squeeze(),
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
+        "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
     }
     
@@ -373,6 +421,8 @@ if __name__ == "__main__":
             "wavlm_emotion_logits_private": results["wavlm_emotion_logits_private"],
             "whisper_emotion_logits_self_recon": results["whisper_emotion_logits_self_recon"],
             "wavlm_emotion_logits_self_recon": results["wavlm_emotion_logits_self_recon"],
+            "whisper_emotion_logits_codec_only": results["whisper_emotion_logits_codec_only"],
+            "wavlm_emotion_logits_codec_only": results["wavlm_emotion_logits_codec_only"],
             "raw_embedding_stats": results["raw_embedding_stats"],
             "self_recon_embedding_stats": results["self_recon_embedding_stats"],
             "private_embedding_stats": results["private_embedding_stats"],
@@ -383,6 +433,7 @@ if __name__ == "__main__":
             save_dict["audio_raw"] = results["audio_raw"]
             save_dict["audio_private"] = results["audio_private"]
             save_dict["audio_self_recon"] = results["audio_self_recon"]
+            save_dict["audio_codec_only"] = results["audio_codec_only"]
         
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
