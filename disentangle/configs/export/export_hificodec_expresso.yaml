@@ -4,8 +4,8 @@ dataset_name: "expresso"
 
 dataset:
   data_dir: "/project2/shrikann_35/DATA/expresso/"
-  split: "train"
+  split: "dev"
 
 device: "cuda"
 
-save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/hificodec/train"
+save_path: "/project2/shrikann_35/DATA/expresso/codec_feats/hificodec/dev"
