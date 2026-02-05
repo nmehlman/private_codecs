@@ -146,7 +146,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
     # Encode audio with codec
     with torch.no_grad():
         embedding = codec.encode(audio, sr=dataset_sr)
-        _, quantized_embedding = codec.quantize(embedding)
+        codes_raw, quantized_embedding = codec.quantize(embedding)
     
     # Generate private audio with target emotion prototype only
     with torch.no_grad():
@@ -163,7 +163,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
     with torch.no_grad():
-        audio_codec_only = codec.decode(quantized_embedding)
+        audio_codec_only = codec.decode(codes_raw)
     
     # Resample audios to dataset sr for emotion model
     audio_private = torchaudio.functional.resample(
@@ -245,7 +245,7 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
     # Encode audio with codec
     with torch.no_grad():
         embedding = codec.encode(audio, sr=dataset_sr)
-        _, quantized_embedding = codec.quantize(embedding)
+        codes_raw, quantized_embedding = codec.quantize(embedding)
     
     # Generate private audio with target emotion prototype only
     with torch.no_grad():
@@ -262,7 +262,7 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
     with torch.no_grad():
-        audio_codec_only = codec.decode(quantized_embedding)
+        audio_codec_only = codec.decode(codes_raw)
     
     # Resample audios to dataset sr for emotion model
     audio_private = torchaudio.functional.resample(
