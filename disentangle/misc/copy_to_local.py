@@ -22,7 +22,7 @@ def copy_files_from_slurm(remote_user, remote_host, log_dir, local_dir, N):
 
     # Split the output into a list of files
     files = result.stdout.splitlines()
-    files.sort()  # Sort files to ensure consistent ordering
+    files.sort(key=lambda x: int(x.split('/')[-1].split('_')[0]))  # Sort files to ensure consistent ordering
     print(f'Found {len(files)} .pkl files in {log_dir}.')
     # Copy the first N files using scp
     for file in files[:N]:
@@ -38,8 +38,8 @@ if __name__ == "__main__":
     # Example usage
     remote_user = 'nmehlman'
     remote_host = 'discovery.usc.edu'
-    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/ae_only/version_3/'
+    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/longer_training/version_0/'
     local_dir = '/Users/nick/Desktop/Private Codecs/tests'
-    N = 1  # Number of files to copy
+    N = 3  # Number of files to copy
 
     copy_files_from_slurm(remote_user, remote_host, log_dir, local_dir, N)
