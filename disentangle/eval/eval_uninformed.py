@@ -9,6 +9,7 @@ from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR
 
 import argparse
 import os
+import re
 import pytorch_lightning as pl
 import yaml
 from torch.utils.data import DataLoader
@@ -320,6 +321,32 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
     return results
 
 
+def _resolve_checkpoint_path(log_dir, ckpt_name):
+    if ckpt_name:
+        return os.path.join(log_dir, "checkpoints", ckpt_name)
+
+    checkpoints_dir = os.path.join(log_dir, "checkpoints")
+    if not os.path.isdir(checkpoints_dir):
+        raise FileNotFoundError(f"Checkpoints directory not found: {checkpoints_dir}")
+
+    ckpt_pattern = re.compile(r"epoch=(\d+)-step=(\d+)\.ckpt$")
+    candidates = []
+    for filename in os.listdir(checkpoints_dir):
+        match = ckpt_pattern.match(filename)
+        if match:
+            epoch = int(match.group(1))
+            step = int(match.group(2))
+            candidates.append((epoch, step, filename))
+
+    if not candidates:
+        raise FileNotFoundError(
+            f"No checkpoints matching 'epoch=<int>-step=<int>.ckpt' in {checkpoints_dir}"
+        )
+
+    _, _, latest_filename = max(candidates, key=lambda item: (item[0], item[1]))
+    return os.path.join(checkpoints_dir, latest_filename)
+
+
 CODECS = {
     "encodec": (EnCodec, ENCODEC_SR),
     "hificodec": (HifiCodec, HIFICODEC_SR),
@@ -379,7 +406,7 @@ if __name__ == "__main__":
     prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model)
     
     # Load emotion disentanglement model from checkpoint
-    ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
+    ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
     pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
     
     # Load VP emotion model (pretrained/fixed)
