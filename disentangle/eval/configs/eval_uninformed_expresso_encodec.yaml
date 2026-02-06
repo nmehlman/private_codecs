@@ -11,21 +11,6 @@ num_samples_to_save: 10
 strategy: "exhaustive" # "exhaustive", "targeted", "random"; target_emotion used only if strategy is "targeted"
 target_emotion: "Neutral"  # Emotion classes: Anger(0), Contempt(1), Disgust(2), Fear(3), Happiness(4), Neutral(5), Sadness(6), Surprise(7), Other(8)
 
-# Model options:
-lightning:
-  codec_dim: 128
-  latent_dim: 64
-  enc_channels: [256, 256]
-  dec_channels: [256, 256]
-  conditioning_dim: 256
-  conditioning_dropout: 0.0
-  num_emotion_classes: 9
-  learning_rate: 0.002
-  weight_decay: 0
-  normalize_input: true
-  use_adversarial: false
-  lr_scheduling: true
-
 emotion_conditioning_model: "wavlm"
 
 # Dataset options:

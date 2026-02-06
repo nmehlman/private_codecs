@@ -357,6 +357,10 @@ if __name__ == "__main__":
         os.makedirs(save_root)
     else:
         raise ValueError(f"Save path {save_root} already exists!")
+    
+    train_config_path = os.path.join(log_dir, "config.yaml")
+    with open(train_config_path, "r") as f:
+        train_config = yaml.safe_load(f)
         
     # Save config to save root
     with open(os.path.join(save_root, "config.yaml"), "w") as f:
@@ -376,7 +380,7 @@ if __name__ == "__main__":
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = os.path.join(log_dir, "checkpoints", config["ckpt_name"])
-    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **config["lightning"]).to(config["device"]).eval()
+    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
     
     # Load VP emotion model (pretrained/fixed)
     emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
