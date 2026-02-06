@@ -6,7 +6,7 @@ device: "cuda"
 gpus: "0"
 
 log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/recon_tests/version_0/"
-ckpt_name: "epoch=499-step=93500.ckpt"
+ckpt_name: null
 num_samples_to_save: 10
 strategy: "exhaustive" # "exhaustive", "targeted", "random"; target_emotion used only if strategy is "targeted"
 target_emotion: "Neutral"  # Emotion classes: Anger(0), Contempt(1), Disgust(2), Fear(3), Happiness(4), Neutral(5), Sadness(6), Surprise(7), Other(8)
