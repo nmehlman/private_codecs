@@ -97,11 +97,12 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_mean", mean.view(1, -1, 1))
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
-    def forward(self, x, cond):
+    def forward(self, x, emotion_labs):
+        
         if self.normalize_input:
             x = self._normalize(x)
 
-        x_hat, z = self.ae(x, cond)
+        x_hat, z = self.ae(x, emotion_labs)
 
         if self.normalize_input:
             x_hat = self._denormalize(x_hat)
@@ -160,11 +161,11 @@ class EmotionDisentangleModule(pl.LightningModule):
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
 
     def training_step(self, batch, batch_idx):
-        x, emotion_emb, emotion_labs, lengths = batch
+        x, _, emotion_labs, lengths = batch
         
         if not self.use_adversarial:
             # AE-only training with automatic optimization
-            x_hat, z = self(x, emotion_emb)
+            x_hat, z = self(x, emotion_labs)
             recon_loss = F.mse_loss(x_hat, x)
             
             # Check for NaN
@@ -188,7 +189,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             opt_ae, opt_adv = self.optimizers()
 
             with torch.no_grad():
-                _, z = self(x, emotion_emb)
+                _, z = self(x, emotion_labs)
 
             # Adversary update steps
             for _ in range(self.adv_update_factor):
@@ -218,7 +219,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             # AE update step
             self._freeze(self.adv_classifier)
             self.toggle_optimizer(opt_ae)
-            x_hat, z = self(x, emotion_emb)
+            x_hat, z = self(x, emotion_labs)
             adv_loss_weight = self._compute_adv_loss_weight()
             fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
 
@@ -263,8 +264,8 @@ class EmotionDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, emotion_emb, emotion_labs, lengths = batch
-        x_hat, z = self(x, emotion_emb)
+        x, _, emotion_labs, lengths = batch
+        x_hat, z = self(x, emotion_labs)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
             "val_recon_loss",

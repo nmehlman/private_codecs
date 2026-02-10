@@ -12,6 +12,7 @@ class DisentanglementAE(nn.Module):
                  dec_channels: list, 
                  conditioning_dim: int, 
                  conditioning_dropout: float = 0.0, 
+                 num_emotion_classes: int = 9,
                  **kwargs):
         
         super(DisentanglementAE, self).__init__()
@@ -21,9 +22,13 @@ class DisentanglementAE(nn.Module):
 
         self.conditioning_dropout = conditioning_dropout
 
-    def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
+        self.embedding_table =  torch.nn.Embedding(num_emotion_classes, conditioning_dim)
+
+    def forward(self, codec_output: torch.Tensor, emotion_labs: torch.Tensor) -> tuple:
         
         z = self.encoder(codec_output)
+
+        emotion_embed = self.embedding_table(emotion_labs)
         
         if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
             b = emotion_embed.size(0)
@@ -33,6 +38,7 @@ class DisentanglementAE(nn.Module):
             emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
         
         x_hat = self.decoder(z, conditioning=emotion_embed)
+        
         return x_hat, z
     
 class AttentionPooling(torch.nn.Module):
