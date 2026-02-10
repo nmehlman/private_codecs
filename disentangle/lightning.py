@@ -46,6 +46,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         dataset_stats: dict = {},
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
+        gradient_clip_val: float = 0.0,
     ):
         super().__init__()
 
@@ -79,6 +80,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
+        self.gradient_clip_val = gradient_clip_val
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
             self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
@@ -135,6 +137,28 @@ class EmotionDisentangleModule(pl.LightningModule):
         for param in module.parameters():
             param.requires_grad_(True)
 
+    def _check_nan(self, loss, loss_name):
+        """Check if loss contains NaN and log warning."""
+        if torch.isnan(loss):
+            self.log(f"{loss_name}_is_nan", 1.0, on_step=True, on_epoch=False)
+            return True
+        return False
+
+    def _compute_grad_norm(self, parameters):
+        """Compute total gradient norm across parameters."""
+        total_norm = 0.0
+        for p in parameters:
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        return total_norm
+
+    def _clip_gradients(self, parameters):
+        """Apply gradient clipping if enabled."""
+        if self.gradient_clip_val > 0:
+            torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
+
     def training_step(self, batch, batch_idx):
         x, emotion_emb, emotion_labs, lengths = batch
         
@@ -142,6 +166,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             # AE-only training with automatic optimization
             x_hat, z = self(x, emotion_emb)
             recon_loss = F.mse_loss(x_hat, x)
+            
+            # Check for NaN
+            self._check_nan(recon_loss, "train_recon_loss")
             
             self.log_dict(
                 {
@@ -168,8 +195,20 @@ class EmotionDisentangleModule(pl.LightningModule):
                 self.toggle_optimizer(opt_adv)
                 adv_logits = self.adv_classifier(z, lengths)
                 adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+                
+                # Check for NaN
+                self._check_nan(adv_loss, "train_adv_loss")
+                
                 opt_adv.zero_grad()
                 self.manual_backward(adv_loss)
+                
+                # Compute and log gradient norm
+                grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
+                self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
+                
+                # Apply gradient clipping
+                self._clip_gradients(self.adv_classifier.parameters())
+                
                 opt_adv.step()
                 opt_adv.zero_grad(set_to_none=True)
                 self.untoggle_optimizer(opt_adv)
@@ -187,9 +226,22 @@ class EmotionDisentangleModule(pl.LightningModule):
             fool_loss = F.cross_entropy(fool_logits, emotion_labs)
 
             ae_loss = recon_loss + fool_loss
+            
+            # Check for NaN
+            self._check_nan(recon_loss, "train_recon_loss")
+            self._check_nan(fool_loss, "train_fool_loss")
+            self._check_nan(ae_loss, "train_ae_loss")
 
             opt_ae.zero_grad()
             self.manual_backward(ae_loss)
+            
+            # Compute and log gradient norm
+            grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
+            self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
+            
+            # Apply gradient clipping
+            self._clip_gradients(self.ae.parameters())
+            
             opt_ae.step()
             self.untoggle_optimizer(opt_ae)
             self._unfreeze(self.adv_classifier)
@@ -235,6 +287,19 @@ class EmotionDisentangleModule(pl.LightningModule):
                 sync_dist=True,
             )
 
+    def on_before_optimizer_step(self, optimizer):
+            """Hook called before optimizer step - used for gradient logging in automatic optimization mode."""
+            if not self.use_adversarial:
+                # Log gradient norm for AE-only training (automatic optimization)
+                grad_norm = self._compute_grad_norm(self.ae.parameters())
+                self.log("grad_norm_autoencoder", grad_norm, on_step=True, on_epoch=False, sync_dist=True)
+
+    def configure_gradient_clipping(self, optimizer, gradient_clip_val=None, gradient_clip_algorithm=None):
+            """Configure gradient clipping for automatic optimization mode."""
+            if not self.use_adversarial and self.gradient_clip_val > 0:
+                # Apply gradient clipping for AE-only training (automatic optimization)
+                self.clip_gradients(optimizer, gradient_clip_val=self.gradient_clip_val, gradient_clip_algorithm="norm")
+
     def configure_optimizers(self):
         
         opt_ae = torch.optim.Adam(
@@ -255,6 +320,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             # Adversarial training: return both optimizers and schedulers
             opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
             
+            # Store optimizer names for logging
+            self.optimizer_names = ["autoencoder", "adversarial"]
+            
             if self.lr_scheduling:
                 sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
                     opt_ae, T_max=max(self.trainer.max_epochs, 1)
@@ -262,7 +330,10 @@ class EmotionDisentangleModule(pl.LightningModule):
                 sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
                     opt_adv, T_max=max(self.trainer.max_epochs, 1)
                 )
-                return [opt_ae, opt_adv], [sched_ae, sched_adv]
+                return [
+                    {"optimizer": opt_ae, "lr_scheduler": sched_ae},
+                    {"optimizer": opt_adv, "lr_scheduler": sched_adv}
+                ]
             else:
                 return [opt_ae, opt_adv]
 
@@ -270,9 +341,15 @@ class EmotionDisentangleModule(pl.LightningModule):
         if not self.use_adversarial:
             # Automatic optimization handles scheduler stepping
             return
+        
         schedulers = self.lr_schedulers()
+        
         if isinstance(schedulers, (list, tuple)):
-            for scheduler in schedulers:
+            for i, scheduler in enumerate(schedulers):
                 scheduler.step()
+                # Use stored optimizer names for logging
+                name = self.optimizer_names[i] if hasattr(self, 'optimizer_names') and i < len(self.optimizer_names) else f"optimizer_{i}"
+                self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True, sync_dist=True)
         elif schedulers is not None:
             schedulers.step()
+            self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
