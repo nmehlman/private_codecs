@@ -24,9 +24,9 @@ dataloader:
 # Model options:
 lightning:
   codec_dim: 128
-  latent_dim: 64
-  enc_channels: [256, 256]
-  dec_channels: [256, 256]
+  latent_dim: 40
+  enc_channels: [256, 128]
+  dec_channels: [128, 256]
   conditioning_dim: 256
   conditioning_dropout: 0.0
   num_emotion_classes: 9
@@ -35,6 +35,7 @@ lightning:
   normalize_input: true
   use_adversarial: false
   lr_scheduling: true
+  gradient_clip_val: 2.0
 
 
 # Training options:
@@ -51,6 +52,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "recon_tests"
+  name: "embed-table-ae-only"
   version: null     # Automatic versioning if set to null (recommended)
 
