@@ -262,17 +262,31 @@ class EmotionDisentangleModule(pl.LightningModule):
                 sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
                     opt_adv, T_max=max(self.trainer.max_epochs, 1)
                 )
-                return [opt_ae, opt_adv], [sched_ae, sched_adv]
+                return [
+                    {"optimizer": opt_ae, "lr_scheduler": sched_ae, "name": "autoencoder"},
+                    {"optimizer": opt_adv, "lr_scheduler": sched_adv, "name": "adversarial"}
+                ]
             else:
-                return [opt_ae, opt_adv]
+                return [
+                    {"optimizer": opt_ae, "name": "autoencoder"},
+                    {"optimizer": opt_adv, "name": "adversarial"}
+                ]
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
             # Automatic optimization handles scheduler stepping
             return
+        
+        # Get optimizer configs to access names
+        opt_configs = self.trainer.strategy.optimizers
         schedulers = self.lr_schedulers()
+        
         if isinstance(schedulers, (list, tuple)):
-            for scheduler in schedulers:
+            for i, scheduler in enumerate(schedulers):
                 scheduler.step()
+                # Use the name from the optimizer config if available
+                name = opt_configs[i].get("name", f"optimizer_{i}") if isinstance(opt_configs[i], dict) else f"optimizer_{i}"
+                self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True)
         elif schedulers is not None:
             schedulers.step()
+            self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True)
