@@ -255,6 +255,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             # Adversarial training: return both optimizers and schedulers
             opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
             
+            # Store optimizer names for logging
+            self.optimizer_names = ["autoencoder", "adversarial"]
+            
             if self.lr_scheduling:
                 sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
                     opt_ae, T_max=max(self.trainer.max_epochs, 1)
@@ -263,30 +266,25 @@ class EmotionDisentangleModule(pl.LightningModule):
                     opt_adv, T_max=max(self.trainer.max_epochs, 1)
                 )
                 return [
-                    {"optimizer": opt_ae, "lr_scheduler": sched_ae, "name": "autoencoder"},
-                    {"optimizer": opt_adv, "lr_scheduler": sched_adv, "name": "adversarial"}
+                    {"optimizer": opt_ae, "lr_scheduler": sched_ae},
+                    {"optimizer": opt_adv, "lr_scheduler": sched_adv}
                 ]
             else:
-                return [
-                    {"optimizer": opt_ae, "name": "autoencoder"},
-                    {"optimizer": opt_adv, "name": "adversarial"}
-                ]
+                return [opt_ae, opt_adv]
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
             # Automatic optimization handles scheduler stepping
             return
         
-        # Get optimizer configs to access names
-        opt_configs = self.trainer.strategy.optimizers
         schedulers = self.lr_schedulers()
         
         if isinstance(schedulers, (list, tuple)):
             for i, scheduler in enumerate(schedulers):
                 scheduler.step()
-                # Use the name from the optimizer config if available
-                name = opt_configs[i].get("name", f"optimizer_{i}") if isinstance(opt_configs[i], dict) else f"optimizer_{i}"
-                self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True)
+                # Use stored optimizer names for logging
+                name = self.optimizer_names[i] if hasattr(self, 'optimizer_names') and i < len(self.optimizer_names) else f"optimizer_{i}"
+                self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True, sync_dist=True)
         elif schedulers is not None:
             schedulers.step()
-            self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True)
+            self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
