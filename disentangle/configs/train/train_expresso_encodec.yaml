@@ -27,7 +27,7 @@ lightning:
   enc_channels: [256,256]
   dec_channels: [256,256]
   conditioning_dim: 256
-  conditioning_dropout: 0.4
+  conditioning_dropout: 0.0
   num_emotion_classes: 9
   adversarial_channels: [64, 64, 64]
   adv_loss_weight: 0.02
@@ -36,11 +36,12 @@ lightning:
   adv_annealing_steps: 1000
   adv_update_factor: 2
   normalize_input: true
+  gradient_clip_val: 5
 
 
 # Training options:
 trainer:
-  max_epochs: 150
+  max_epochs: 250
   val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
   log_every_n_steps: 10    
   sync_batchnorm: True
