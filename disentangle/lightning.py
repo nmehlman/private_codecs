@@ -352,9 +352,9 @@ class EmotionDisentangleModule(pl.LightningModule):
                 validation_dataloader = validation_dataloader[0]
 
         batch = next(iter(validation_dataloader))
-        x, _, emotion_labs, lengths = batch
+        x, _, emotion_labs, _ = batch
         
-        x_hat_self_recon, _ = self(x, emotion_labs)
+        x_hat_self_recon, _ = self(x, emotion_labs.to(x.device))
         
         _ones = torch.ones_like(emotion_labs)
         emotion_labs_shuffled = torch.stack( [torch.remainder(emotion_labs + _ones * i, 9 * _ones) for i in range(1,9)], dim=0) # Permute emotion labels
