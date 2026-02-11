@@ -7,8 +7,11 @@ from torch.autograd import Function
 from torchmetrics import Accuracy
 
 from disentangle.models import AdversarialClassifier, DisentanglementAE
-from disentangle.eval.eval_uninformed import compute_difference_metric
 
+def compute_difference_metric(emb_self_recon, emb_private):
+    """Compute some metric between self-reconstructed and private embeddings."""
+    metric = torch.norm(emb_self_recon - emb_private, p=2).item()/(torch.norm(emb_self_recon, p=2).item() + 1e-8)
+    return metric
 
 class GradReverse(Function):
     @staticmethod

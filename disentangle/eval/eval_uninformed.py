@@ -20,6 +20,8 @@ import torchaudio
 import pickle
 import random
 
+from disentangle.lightning import compute_difference_metric
+
 def get_stats(tensor):
         return {
             "mean": tensor.mean().item(),
@@ -27,11 +29,6 @@ def get_stats(tensor):
             "max": tensor.max().item(),
             "min": tensor.min().item(),
         }
-
-def compute_difference_metric(emb_self_recon, emb_private):
-    """Compute some metric between self-reconstructed and private embeddings."""
-    metric = torch.norm(emb_self_recon - emb_private, p=2).item()/(torch.norm(emb_self_recon, p=2).item() + 1e-8)
-    return metric
 
 
 def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes, dataset_sr, codec_sr, emotion_conditioning_model, config):
