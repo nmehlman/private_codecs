@@ -368,7 +368,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             x_hat_perm, _ = self(x, emotion_labs_perm)
             recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
             
-        mean_diff = torch.mean(torch.tensor(recon_diffs))
+        mean_diff = torch.mean(torch.tensor(recon_diffs)).to(self.device)
         
         self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
 
