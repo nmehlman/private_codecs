@@ -344,6 +344,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             
     def on_validation_epoch_end(self):
         """Computes impact of emotion embedding on reconstruction by permuting emotion labels and measuring change in recon."""
+        
         if self.trainer.datamodule is not None:
             validation_dataloader = self.trainer.datamodule.val_dataloader()
         else:
@@ -351,8 +352,8 @@ class EmotionDisentangleModule(pl.LightningModule):
             if isinstance(validation_dataloader, (list, tuple)):
                 validation_dataloader = validation_dataloader[0]
 
-        batch = next(iter(validation_dataloader))
-        x, _, emotion_labs, _ = batch
+        test_batch = next(iter(validation_dataloader))
+        x, _, emotion_labs, _ = test_batch
         
         x = x.to(self.device)
         emotion_labs = emotion_labs.to(self.device)
@@ -360,15 +361,16 @@ class EmotionDisentangleModule(pl.LightningModule):
         x_hat_self_recon, _ = self(x, emotion_labs)
         
         _ones = torch.ones_like(emotion_labs)
-        emotion_labs_shuffled = torch.stack( [torch.remainder(emotion_labs + _ones * i, 9 * _ones) for i in range(1,9)], dim=0) # Permute emotion labels
+        emotion_labs_shuffled = torch.stack( [torch.remainder(emotion_labs + _ones * i, 9 * _ones) for i in range(1,9)], dim=0).to(x.device) # Permute emotion labels
         
         recon_diffs = []
         for emotion_labs_perm in emotion_labs_shuffled:
-            emotion_labs_perm = emotion_labs_perm.to(x.device)
             x_hat_perm, _ = self(x, emotion_labs_perm)
             recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
+            
+        mean_diff = torch.mean(torch.tensor(recon_diffs))
         
-        self.log("val_difference_metric", torch.mean(torch.tensor(recon_diffs)), on_epoch=True, sync_dist=True)
+        self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
