@@ -7,6 +7,7 @@ from torch.autograd import Function
 from torchmetrics import Accuracy
 
 from disentangle.models import AdversarialClassifier, DisentanglementAE
+from disentangle.eval.eval_uninformed import compute_difference_metric
 
 
 class GradReverse(Function):
@@ -337,6 +338,25 @@ class EmotionDisentangleModule(pl.LightningModule):
                 ]
             else:
                 return [opt_ae, opt_adv]
+            
+    def on_validation_epoch_end(self):
+        """Computes impact of emotion embedding on reconstruction by permuting emotion labels and measuring change in recon."""
+        validation_dataloader = self.trainer.datamodule.val_dataloader()
+        batch = next(iter(validation_dataloader))
+        x, _, emotion_labs, lengths = batch
+        
+        x_hat_self_recon, _ = self(x, emotion_labs)
+        
+        _ones = torch.ones_like(emotion_labs)
+        emotion_labs_shuffled = torch.stack( [torch.remainder(emotion_labs + _ones * i, 9 * _ones) for i in range(1,9)], dim=0) # Permute emotion labels
+        
+        recon_diffs = []
+        for emotion_labs_perm in emotion_labs_shuffled:
+            emotion_labs_perm = emotion_labs_perm.to(x.device)
+            x_hat_perm, _ = self(x, emotion_labs_perm)
+            recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm, lengths))
+        
+        self.log("val_difference_metric", torch.mean(torch.stack(recon_diffs)), on_epoch=True, sync_dist=True)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:

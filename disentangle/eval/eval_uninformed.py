@@ -28,7 +28,7 @@ def get_stats(tensor):
             "min": tensor.min().item(),
         }
 
-def compute_different_metric(emb_self_recon, emb_private):
+def compute_difference_metric(emb_self_recon, emb_private):
     """Compute some metric between self-reconstructed and private embeddings."""
     metric = torch.norm(emb_self_recon - emb_private, p=2).item()/(torch.norm(emb_self_recon, p=2).item() + 1e-8)
     return metric
@@ -126,7 +126,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "audio_private": {emotion_name: audio.cpu().squeeze() for emotion_name, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": {emotion_name: compute_different_metric(embedding_self_recon, embedding_private) for emotion_name, embedding_private in embeddings_private.items()}
+        "difference_metrics": {emotion_name: compute_difference_metric(embedding_self_recon, embedding_private) for emotion_name, embedding_private in embeddings_private.items()}
     }
     
     return results
@@ -217,7 +217,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
+        "difference_metrics": compute_difference_metric(embedding_self_recon, embedding_private)
     }
     
     return results
@@ -316,7 +316,7 @@ def process_sample_random(sample, codec, pl_model, emotion_model, prototypes, da
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
+        "difference_metrics": compute_difference_metric(embedding_self_recon, embedding_private)
     }
     
     return results
