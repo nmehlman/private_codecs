@@ -57,7 +57,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         audio_private = {}
         embeddings_private = {}
         for emotion_label, emotion_name in enumerate(prototypes.keys()):
-            emotion_label = torch.tensor([emotion_label]).to(config["device"])
+            emotion_label = torch.tensor([emotion_label], dtype=torch.long).to(config["device"])
             embedding_private, _ = pl_model(quantized_embedding, emotion_label)
             codes_private, _ = codec.quantize(embedding_private)
             audio_private[emotion_name] = codec.decode(codes_private)
@@ -65,7 +65,8 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     
     # Run self-reconstruction for reference
     with torch.no_grad():
-        embedding_self_recon, _ = pl_model(quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"])
+        self_label = torch.tensor([label], dtype=torch.long).to(config["device"])
+        embedding_self_recon, _ = pl_model(quantized_embedding, self_label)
         codes_self_recon, _ = codec.quantize(embedding_self_recon)
         audio_self_recon = codec.decode(codes_self_recon)
     
