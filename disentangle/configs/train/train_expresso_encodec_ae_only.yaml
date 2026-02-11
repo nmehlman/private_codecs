@@ -36,6 +36,8 @@ lightning:
   use_adversarial: false
   lr_scheduling: true
   gradient_clip_val: 2.0
+  emotion_utilization_weight: 1.0
+  emotion_utilization_margin: 0.001
 
 
 # Training options:
