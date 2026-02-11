@@ -33,7 +33,7 @@ lightning:
   learning_rate: 0.002
   weight_decay: 0
   normalize_input: true
-  use_adversarial: false
+  use_adversarial: true
   lr_scheduling: true
   gradient_clip_val: 2.0
 

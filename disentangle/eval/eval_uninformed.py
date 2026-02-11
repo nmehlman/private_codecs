@@ -56,12 +56,12 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     with torch.no_grad():
         audio_private = {}
         embeddings_private = {}
-        for emotion in prototypes:
-            emotion_embedding_proto = prototypes[emotion].to(quantized_embedding.device).unsqueeze(0)
-            embedding_private, _ = pl_model(quantized_embedding, emotion_embedding_proto)
+        for emotion_label, emotion_name in enumerate(prototypes.keys()):
+            emotion_label = torch.tensor([emotion_label]).to(config["device"])
+            embedding_private, _ = pl_model(quantized_embedding, emotion_label)
             codes_private, _ = codec.quantize(embedding_private)
-            audio_private[emotion] = codec.decode(codes_private)
-            embeddings_private[emotion] = embedding_private
+            audio_private[emotion_name] = codec.decode(codes_private)
+            embeddings_private[emotion_name] = embedding_private
     
     # Run self-reconstruction for reference
     with torch.no_grad():
@@ -74,9 +74,9 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         audio_codec_only = codec.decode(codes_raw)
     
     # Resample audios to dataset sr for emotion model
-    for emotion in audio_private:
-        audio_private[emotion] = torchaudio.functional.resample(
-            audio_private[emotion], orig_freq=codec_sr, new_freq=dataset_sr
+    for emotion_name in audio_private:
+        audio_private[emotion_name] = torchaudio.functional.resample(
+            audio_private[emotion_name], orig_freq=codec_sr, new_freq=dataset_sr
         ).unsqueeze(0)
     
     audio_self_recon = torchaudio.functional.resample(
@@ -90,9 +90,9 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     # Get emotion logits for all private audios
     with torch.no_grad():
         emotion_logits_private = {}
-        for emotion in audio_private:
-            emotion_logits_private[emotion] = emotion_model(
-                audio_private[emotion], sr=dataset_sr, return_embeddings=False, 
+        for emotion_name in audio_private:
+            emotion_logits_private[emotion_name] = emotion_model(
+                audio_private[emotion_name], sr=dataset_sr, return_embeddings=False, 
                 lengths=torch.tensor([length]).to(config["device"])
             )
         
@@ -116,16 +116,16 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "wavlm_emotion_logits_self_recon": emotion_logits_self_recon["wavlm_logits"].cpu().squeeze(),
         "whisper_emotion_logits_codec_only": emotion_logits_codec_only["whisper_logits"].cpu().squeeze(),
         "wavlm_emotion_logits_codec_only": emotion_logits_codec_only["wavlm_logits"].cpu().squeeze(),
-        "whisper_emotion_logits_private": {emotion: logits["whisper_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
-        "wavlm_emotion_logits_private": {emotion: logits["wavlm_logits"].cpu().squeeze() for emotion, logits in emotion_logits_private.items()},
+        "whisper_emotion_logits_private": {emotion_name: logits["whisper_logits"].cpu().squeeze() for emotion_name, logits in emotion_logits_private.items()},
+        "wavlm_emotion_logits_private": {emotion_name: logits["wavlm_logits"].cpu().squeeze() for emotion_name, logits in emotion_logits_private.items()},
         "raw_embedding_stats": get_stats(quantized_embedding),
         "self_recon_embedding_stats": get_stats(embedding_self_recon),
-        "private_embedding_stats": {emotion: get_stats(embedding_private) for emotion, embedding_private in embeddings_private.items()},
+        "private_embedding_stats": {emotion_name: get_stats(embedding_private) for emotion_name, embedding_private in embeddings_private.items()},
         "audio_raw": audio.cpu().squeeze(),
-        "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
+        "audio_private": {emotion_name: audio.cpu().squeeze() for emotion_name, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": {emotion: compute_different_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()}
+        "difference_metrics": {emotion_name: compute_different_metric(embedding_self_recon, embedding_private) for emotion_name, embedding_private in embeddings_private.items()}
     }
     
     return results
