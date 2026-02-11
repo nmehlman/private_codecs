@@ -368,7 +368,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             x_hat_perm, _ = self(x, emotion_labs_perm)
             recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
         
-        self.log("val_difference_metric", torch.mean(torch.stack(recon_diffs)), on_epoch=True, sync_dist=True)
+        self.log("val_difference_metric", torch.mean(torch.tensor(recon_diffs)), on_epoch=True, sync_dist=True)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
