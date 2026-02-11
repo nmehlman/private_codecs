@@ -344,7 +344,13 @@ class EmotionDisentangleModule(pl.LightningModule):
             
     def on_validation_epoch_end(self):
         """Computes impact of emotion embedding on reconstruction by permuting emotion labels and measuring change in recon."""
-        validation_dataloader = self.trainer.datamodule.val_dataloader()
+        if self.trainer.datamodule is not None:
+            validation_dataloader = self.trainer.datamodule.val_dataloader()
+        else:
+            validation_dataloader = self.trainer.val_dataloaders
+            if isinstance(validation_dataloader, (list, tuple)):
+                validation_dataloader = validation_dataloader[0]
+
         batch = next(iter(validation_dataloader))
         x, _, emotion_labs, lengths = batch
         
@@ -357,7 +363,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         for emotion_labs_perm in emotion_labs_shuffled:
             emotion_labs_perm = emotion_labs_perm.to(x.device)
             x_hat_perm, _ = self(x, emotion_labs_perm)
-            recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm, lengths))
+            recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
         
         self.log("val_difference_metric", torch.mean(torch.stack(recon_diffs)), on_epoch=True, sync_dist=True)
 
