@@ -371,6 +371,38 @@ class EmotionDisentangleModule(pl.LightningModule):
         mean_diff = torch.mean(torch.tensor(recon_diffs)).to(self.device)
         
         self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
+        
+        # Compute pairwise L2 and cosine distances between emotion embeddings
+        embedding_table = self.ae.embedding_table.weight  # (9, embedding_dim)
+
+        # L2 distances
+        l2_distances = torch.cdist(embedding_table, embedding_table, p=2)
+
+        # Cosine distances
+        cosine_distances = torch.cdist(
+            embedding_table / (torch.norm(embedding_table, dim=1, keepdim=True) + 1e-8),
+            embedding_table / (torch.norm(embedding_table, dim=1, keepdim=True) + 1e-8),
+            p=2
+        ) / 2  # Normalize cosine distance to [0, 1]
+
+        # Log as figures
+        import matplotlib.pyplot as plt
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+        im1 = ax1.imshow(l2_distances.detach().cpu().numpy(), cmap='viridis')
+        ax1.set_title('L2 Distances')
+        ax1.set_xlabel('Emotion ID')
+        ax1.set_ylabel('Emotion ID')
+        plt.colorbar(im1, ax=ax1)
+
+        im2 = ax2.imshow(cosine_distances.detach().cpu().numpy(), cmap='viridis')
+        ax2.set_title('Cosine Distances')
+        ax2.set_xlabel('Emotion ID')
+        ax2.set_ylabel('Emotion ID')
+        plt.colorbar(im2, ax=ax2)
+
+        self.logger.experiment.add_figure("embedding_distances", fig, global_step=self.global_step)
+        plt.close(fig)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
@@ -388,3 +420,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         elif schedulers is not None:
             schedulers.step()
             self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
+            
+            
+        
