@@ -51,6 +51,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
+        emotion_utilization_weight: float = 0.0,
+        emotion_utilization_margin: float = 0.0,
     ):
         super().__init__()
 
@@ -85,6 +87,9 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
+        self.emotion_utilization_weight = emotion_utilization_weight
+        self.emotion_utilization_margin = emotion_utilization_margin
+        
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
             self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
@@ -163,7 +168,24 @@ class EmotionDisentangleModule(pl.LightningModule):
         """Apply gradient clipping if enabled."""
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
-
+            
+    def _compute_emotion_utilization_loss(self, x, emotion_labs):
+        """Compute a loss that encourages the model to utilize emotion conditioning."""
+        
+        # Create a random permutation of emotion labels with no fixed points
+        perm = torch.randperm(emotion_labs.size(0))
+        while (perm == torch.arange(emotion_labs.size(0))).any():
+            perm = torch.randperm(emotion_labs.size(0))
+            
+        emotion_labs_deranged = emotion_labs[perm]
+        x_hat_true, _ = self.ae(x, emotion_labs)
+        recon_loss_true = F.mse_loss(x_hat_true, x)
+        
+        x_hat_deranged, _ = self.ae(x, emotion_labs_deranged)
+        recon_loss_deranged = F.mse_loss(x_hat_deranged, x)
+        
+        return torch.clamp(recon_loss_true - recon_loss_deranged + self.emotion_utilization_margin, min=0.0)
+        
     def training_step(self, batch, batch_idx):
         x, _, emotion_labs, lengths = batch
         
@@ -172,12 +194,19 @@ class EmotionDisentangleModule(pl.LightningModule):
             x_hat, z = self(x, emotion_labs)
             recon_loss = F.mse_loss(x_hat, x)
             
+            emotion_utilization_loss = self._compute_emotion_utilization_loss(x, emotion_labs)
+            total_loss = recon_loss + self.emotion_utilization_weight * emotion_utilization_loss
+            
             # Check for NaN
             self._check_nan(recon_loss, "train_recon_loss")
+            self._check_nan(emotion_utilization_loss, "train_emotion_utilization_loss")
+            self._check_nan(total_loss, "train_total_loss")
             
             self.log_dict(
                 {
                     "train_recon_loss": recon_loss.detach(),
+                    "train_emotion_utilization_loss": emotion_utilization_loss.detach(),
+                    "train_total_loss": total_loss.detach(),
                 },
                 prog_bar=True,
                 on_step=True,
@@ -185,7 +214,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 sync_dist=True,
             )
             
-            return recon_loss
+            return total_loss
         
         else:
         
@@ -226,16 +255,18 @@ class EmotionDisentangleModule(pl.LightningModule):
             x_hat, z = self(x, emotion_labs)
             adv_loss_weight = self._compute_adv_loss_weight()
             fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+            emotion_utilization_loss = self._compute_emotion_utilization_loss(x, emotion_labs)
 
             recon_loss = F.mse_loss(x_hat, x)
             fool_loss = F.cross_entropy(fool_logits, emotion_labs)
 
-            ae_loss = recon_loss + fool_loss
+            ae_loss = recon_loss + fool_loss + self.emotion_utilization_weight * emotion_utilization_loss
             
             # Check for NaN
             self._check_nan(recon_loss, "train_recon_loss")
             self._check_nan(fool_loss, "train_fool_loss")
             self._check_nan(ae_loss, "train_ae_loss")
+            self._check_nan(emotion_utilization_loss, "train_emotion_utilization_loss")
 
             opt_ae.zero_grad()
             self.manual_backward(ae_loss)
@@ -258,6 +289,8 @@ class EmotionDisentangleModule(pl.LightningModule):
                     "train_ae_loss": ae_loss.detach(),
                     "train_adv_acc": adv_acc.detach(),
                     "train_fool_loss": fool_loss.detach(),
+                    "train_emotion_utilization_loss": emotion_utilization_loss.detach(),
+                    "train_total_loss": ae_loss.detach(),
                 },
                 prog_bar=True,
                 on_step=True,
