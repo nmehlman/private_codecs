@@ -38,8 +38,8 @@ if __name__ == "__main__":
     # Example usage
     remote_user = 'nmehlman'
     remote_host = 'discovery.usc.edu'
-    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/embed-table-ae-only/version_0/'
-    local_dir = '/Users/nmehlman/Desktop/temp'
+    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/embed-table-ae-only/version_1/'
+    local_dir = '/Users/nick/Desktop/Private Codecs/tests'
     N = 3  # Number of files to copy
 
     copy_files_from_slurm(remote_user, remote_host, log_dir, local_dir, N)
