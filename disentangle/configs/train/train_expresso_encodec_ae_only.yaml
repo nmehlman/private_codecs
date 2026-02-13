@@ -24,7 +24,7 @@ dataloader:
 # Model options:
 lightning:
   codec_dim: 128
-  latent_dim: 32
+  latent_dim: 40
   enc_channels: [256, 128]
   dec_channels: [256]
   conditioning_dim: 256
@@ -37,7 +37,7 @@ lightning:
   lr_scheduling: true
   gradient_clip_val: 2.0
   emotion_utilization_weight: 1.0
-  emotion_utilization_margin: 0.001
+  emotion_utilization_margin: 0.003
 
 
 # Training options:
