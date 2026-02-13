@@ -13,6 +13,7 @@ class EmbeddingDataset(Dataset):
             self, 
             dataset_path: str, 
             split: str = "train", 
+            codec: str = "encodec",
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
         ):
@@ -20,7 +21,7 @@ class EmbeddingDataset(Dataset):
         self.input_type = input_type
         self.emotion_model = emotion_model
         
-        data_root = os.path.join(dataset_path, split)
+        data_root = os.path.join(dataset_path, codec, split)
         
         self.data_root = data_root
         self.all_files = sorted(os.listdir(data_root))
