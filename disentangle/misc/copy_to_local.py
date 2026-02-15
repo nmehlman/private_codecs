@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Example usage
     remote_user = 'nmehlman'
     remote_host = 'discovery.usc.edu'
-    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/embed-table-ae-only/version_1/'
+    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/embed-table-ae-only-no-film/version_0/'
     local_dir = '/Users/nick/Desktop/Private Codecs/tests'
     N = 3  # Number of files to copy
 
