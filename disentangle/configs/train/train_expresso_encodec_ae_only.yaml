@@ -24,7 +24,7 @@ dataloader:
 # Model options:
 lightning:
   codec_dim: 128
-  latent_dim: 40
+  latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
   conditioning_dim: 256
