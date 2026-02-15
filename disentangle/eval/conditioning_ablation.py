@@ -18,7 +18,7 @@ def compute_conditioning_ablation(
     emotion_embed = ae.embedding_table(emotion_label)
     emotion_embed = emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))  # (B, C, T)
         
-    x_hat = ae.decoder(z, emotion_embed)
+    x_hat = ae.decoder(torch.cat([z, emotion_embed], dim=1))
 
     correct_embedding_recon = ae.decoder(torch.cat([z, emotion_embed], dim=1))
     zeros_embedding_recon = ae.decoder(torch.cat([z, torch.zeros_like(emotion_embed)], dim=1))  
