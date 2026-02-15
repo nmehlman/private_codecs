@@ -22,7 +22,7 @@ import random
 
 from disentangle.lightning import compute_difference_metric
 from disentangle.eval.conditioning_ablation import compute_conditioning_ablation
-from private_codecs.disentangle.eval import conditioning_ablation
+from disentangle.eval import conditioning_ablation
 
 def get_stats(tensor):
         return {
