@@ -1,4 +1,4 @@
-# TODO clean up eval cases
+# TODO swap out prototypes from other cases
 
 from disentangle.lightning import EmotionDisentangleModule
 from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
@@ -21,6 +21,8 @@ import pickle
 import random
 
 from disentangle.lightning import compute_difference_metric
+from disentangle.eval.conditioning_ablation import compute_conditioning_ablation
+from private_codecs.disentangle.eval import conditioning_ablation
 
 def get_stats(tensor):
         return {
@@ -48,6 +50,9 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     with torch.no_grad():
         embedding = codec.encode(audio, sr=dataset_sr)
         codes_raw, quantized_embedding = codec.quantize(embedding)
+    
+    # Compute conditioning ablation results
+    conditioning_ablation_results = compute_conditioning_ablation(pl_model, quantized_embedding, torch.tensor([label], dtype=torch.long).to(config["device"]))
     
     # Generate private audio for all emotion prototypes (exhaustive strategy)
     with torch.no_grad():
@@ -123,7 +128,8 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "audio_private": {emotion_name: audio.cpu().squeeze() for emotion_name, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": {emotion_name: compute_difference_metric(embedding_self_recon, embedding_private) for emotion_name, embedding_private in embeddings_private.items()}
+        "difference_metrics": {emotion_name: compute_difference_metric(embedding_self_recon, embedding_private) for emotion_name, embedding_private in embeddings_private.items()},
+        "conditioning_ablation": conditioning_ablation_results
     }
     
     return results
@@ -456,6 +462,7 @@ if __name__ == "__main__":
             "self_recon_embedding_stats": results["self_recon_embedding_stats"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
+            "conditioning_ablation": results["conditioning_ablation"]
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
