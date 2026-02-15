@@ -2,6 +2,7 @@ import sys
 from pytorch_tcn.tcn import TCN 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class DisentanglementAE(nn.Module):
     
@@ -30,6 +31,7 @@ class DisentanglementAE(nn.Module):
         z = self.encoder(codec_output)
 
         emotion_embed = self.embedding_table(emotion_labs)
+        emotion_embed = F.normalize(emotion_embed, dim=-1)  # Normalize embeddings to unit length
         
         if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
             b = emotion_embed.size(0)
