@@ -13,25 +13,18 @@ class DisentanglementAE(nn.Module):
                  dec_channels: list, 
                  conditioning_dim: int, 
                  conditioning_dropout: float = 0.0, 
-                 num_emotion_classes: int = 9,
                  **kwargs):
         
         super(DisentanglementAE, self).__init__()
         
         self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, **kwargs)
-        self.decoder = TCN(latent_dim + conditioning_dim, dec_channels + [codec_dim], causal=False, disable_final_activation=True, **kwargs)
-        
-        self.conditioning_dim = conditioning_dim
+        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, causal=False, disable_final_activation=True, **kwargs)
+
         self.conditioning_dropout = conditioning_dropout
 
-        self.embedding_table =  torch.nn.Embedding(num_emotion_classes, conditioning_dim)
-
-    def forward(self, codec_output: torch.Tensor, emotion_labs: torch.Tensor) -> tuple:
+    def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
         
         z = self.encoder(codec_output)
-
-        emotion_embed = self.embedding_table(emotion_labs)
-        emotion_embed = F.normalize(emotion_embed, dim=-1)  # Normalize embeddings to unit length
         
         if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
             b = emotion_embed.size(0)
@@ -40,10 +33,7 @@ class DisentanglementAE(nn.Module):
             swapped = emotion_embed[perm]
             emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
         
-        emotion_embed = emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))  # (B, C, T)
-        
-        x_hat = self.decoder(torch.cat([z, emotion_embed], dim=1))
-        
+        x_hat = self.decoder(z, conditioning=emotion_embed)
         return x_hat, z
     
 class AttentionPooling(torch.nn.Module):

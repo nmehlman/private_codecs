@@ -106,12 +106,14 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_mean", mean.view(1, -1, 1))
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
-    def forward(self, x, emotion_labs):
-        
+
+    
+
+    def forward(self, x, cond):
         if self.normalize_input:
             x = self._normalize(x)
 
-        x_hat, z = self.ae(x, emotion_labs)
+        x_hat, z = self.ae(x, cond)
 
         if self.normalize_input:
             x_hat = self._denormalize(x_hat)
@@ -168,44 +170,24 @@ class EmotionDisentangleModule(pl.LightningModule):
         """Apply gradient clipping if enabled."""
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
-            
-    def _compute_emotion_utilization_loss(self, x, emotion_labs):
-        """Compute a loss that encourages the model to utilize emotion conditioning."""
-        
-        # Create a random permutation of emotion labels with no fixed points
-        perm = torch.randperm(emotion_labs.size(0))
-        while (perm == torch.arange(emotion_labs.size(0))).any():
-            perm = torch.randperm(emotion_labs.size(0))
-            
-        emotion_labs_deranged = emotion_labs[perm]
-        x_hat_true, _ = self.ae(x, emotion_labs)
-        recon_loss_true = F.mse_loss(x_hat_true, x)
-        
-        x_hat_deranged, _ = self.ae(x, emotion_labs_deranged)
-        recon_loss_deranged = F.mse_loss(x_hat_deranged, x)
-        
-        return torch.clamp(recon_loss_true - recon_loss_deranged + self.emotion_utilization_margin, min=0.0)
         
     def training_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
+        x, emotion_emb, emotion_labs, lengths = batch
         
         if not self.use_adversarial:
             # AE-only training with automatic optimization
-            x_hat, z = self(x, emotion_labs)
+            x_hat, z = self(x, emotion_emb)
             recon_loss = F.mse_loss(x_hat, x)
             
-            emotion_utilization_loss = self._compute_emotion_utilization_loss(x, emotion_labs)
             total_loss = recon_loss + self.emotion_utilization_weight * emotion_utilization_loss
             
             # Check for NaN
             self._check_nan(recon_loss, "train_recon_loss")
-            self._check_nan(emotion_utilization_loss, "train_emotion_utilization_loss")
             self._check_nan(total_loss, "train_total_loss")
             
             self.log_dict(
                 {
                     "train_recon_loss": recon_loss.detach(),
-                    "train_emotion_utilization_loss": emotion_utilization_loss.detach(),
                     "train_total_loss": total_loss.detach(),
                 },
                 prog_bar=True,
@@ -222,7 +204,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             opt_ae, opt_adv = self.optimizers()
 
             with torch.no_grad():
-                _, z = self(x, emotion_labs)
+                _, z = self(x, emotion_emb)
 
             # Adversary update steps
             for _ in range(self.adv_update_factor):
@@ -252,7 +234,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             # AE update step
             self._freeze(self.adv_classifier)
             self.toggle_optimizer(opt_ae)
-            x_hat, z = self(x, emotion_labs)
+            x_hat, z = self(x, emotion_emb)
             adv_loss_weight = self._compute_adv_loss_weight()
             fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
             emotion_utilization_loss = self._compute_emotion_utilization_loss(x, emotion_labs)
@@ -301,8 +283,8 @@ class EmotionDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
-        x_hat, z = self(x, emotion_labs)
+        x, emotion_emb, emotion_labs, lengths = batch
+        x_hat, z = self(x, emotion_emb)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
             "val_recon_loss",
@@ -374,86 +356,3 @@ class EmotionDisentangleModule(pl.LightningModule):
                 ]
             else:
                 return [opt_ae, opt_adv]
-            
-    def on_validation_epoch_end(self):
-        """Computes impact of emotion embedding on reconstruction by permuting emotion labels and measuring change in recon."""
-        
-        if self.trainer.datamodule is not None:
-            validation_dataloader = self.trainer.datamodule.val_dataloader()
-        else:
-            validation_dataloader = self.trainer.val_dataloaders
-            if isinstance(validation_dataloader, (list, tuple)):
-                validation_dataloader = validation_dataloader[0]
-
-        test_batch = next(iter(validation_dataloader))
-        x, _, emotion_labs, _ = test_batch
-        
-        x = x.to(self.device)
-        emotion_labs = emotion_labs.to(self.device)
-        
-        x_hat_self_recon, _ = self(x, emotion_labs)
-        
-        _ones = torch.ones_like(emotion_labs)
-        emotion_labs_shuffled = torch.stack( [torch.remainder(emotion_labs + _ones * i, 9 * _ones) for i in range(1,9)], dim=0).to(x.device) # Permute emotion labels
-        
-        recon_diffs = []
-        for emotion_labs_perm in emotion_labs_shuffled:
-            x_hat_perm, _ = self(x, emotion_labs_perm)
-            diff_metrics = [compute_difference_metric(x_hat_self_recon[i], x_hat_perm[i]) for i in range(x.size(0))]
-            recon_diffs += diff_metrics
-            
-        mean_diff = torch.mean(torch.tensor(recon_diffs)).to(self.device)
-        
-        self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
-        
-        # Compute pairwise L2 and cosine distances between emotion embeddings
-        embedding_table = self.ae.embedding_table.weight  # (9, embedding_dim)
-
-        # L2 distances
-        l2_distances = torch.cdist(embedding_table, embedding_table, p=2)
-
-        # Cosine distances
-        cosine_distances = torch.cdist(
-            embedding_table / (torch.norm(embedding_table, dim=1, keepdim=True) + 1e-8),
-            embedding_table / (torch.norm(embedding_table, dim=1, keepdim=True) + 1e-8),
-            p=2
-        ) / 2  # Normalize cosine distance to [0, 1]
-
-        # Log as figures
-        import matplotlib.pyplot as plt
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-        im1 = ax1.imshow(l2_distances.detach().cpu().numpy(), cmap='viridis')
-        ax1.set_title('L2 Distances')
-        ax1.set_xlabel('Emotion ID')
-        ax1.set_ylabel('Emotion ID')
-        plt.colorbar(im1, ax=ax1)
-
-        im2 = ax2.imshow(cosine_distances.detach().cpu().numpy(), cmap='viridis')
-        ax2.set_title('Cosine Distances')
-        ax2.set_xlabel('Emotion ID')
-        ax2.set_ylabel('Emotion ID')
-        plt.colorbar(im2, ax=ax2)
-
-        self.logger.experiment.add_figure("embedding_distances", fig, global_step=self.global_step)
-        plt.close(fig)
-
-    def on_train_epoch_end(self):
-        if not self.use_adversarial:
-            # Automatic optimization handles scheduler stepping
-            return
-        
-        schedulers = self.lr_schedulers()
-        
-        if isinstance(schedulers, (list, tuple)):
-            for i, scheduler in enumerate(schedulers):
-                scheduler.step()
-                # Use stored optimizer names for logging
-                name = self.optimizer_names[i] if hasattr(self, 'optimizer_names') and i < len(self.optimizer_names) else f"optimizer_{i}"
-                self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True, sync_dist=True)
-        elif schedulers is not None:
-            schedulers.step()
-            self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
-            
-            
-        
