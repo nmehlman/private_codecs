@@ -35,7 +35,7 @@ lightning:
   normalize_input: true
   use_adversarial: false
   lr_scheduling: true
-  gradient_clip_val: 2.0
+  gradient_clip_val: 1.0
   emotion_utilization_weight: 100.0
   emotion_utilization_margin: 0.003
 
@@ -54,6 +54,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "embed-table-ae-only-no-film"
+  name: "debug"
   version: null     # Automatic versioning if set to null (recommended)
 
