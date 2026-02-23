@@ -171,24 +171,45 @@ class EmotionDisentangleModule(pl.LightningModule):
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
             
+    def _compute_emotion_utilization_loss(self, x, emotion_emb):
+        """Compute a loss that encourages the model to utilize emotion conditioning."""
+        
+        # Create a random permutation of emotion labels with no fixed points
+        perm = torch.randperm(emotion_emb.size(0))
+        while (perm == torch.arange(emotion_emb.size(0))).any():
+            perm = torch.randperm(emotion_emb.size(0))
+            
+        emotion_emb_deranged = emotion_emb[perm]
+        x_hat_true, _ = self.ae(x, emotion_emb)
+        recon_loss_true = F.mse_loss(x_hat_true, x)
+        
+        x_hat_deranged, _ = self.ae(x, emotion_emb_deranged)
+        recon_loss_deranged = F.mse_loss(x_hat_deranged, x)
+        
+        return torch.clamp(recon_loss_true - recon_loss_deranged + self.emotion_utilization_margin, min=0.0)
+        
     def training_step(self, batch, batch_idx):
         x, emotion_emb, emotion_labs, lengths = batch
         
         if not self.use_adversarial:
+            
             # AE-only training with automatic optimization
             x_hat, z = self(x, emotion_emb)
             recon_loss = F.mse_loss(x_hat, x)
+            emotion_util_loss = self._compute_emotion_utilization_loss(x, emotion_emb) if self.emotion_utilization_weight > 0 else 0.0
             
-            total_loss = recon_loss
+            total_loss = recon_loss + self.emotion_utilization_weight * emotion_util_loss   
 
             # Check for NaN
             self._check_nan(recon_loss, "train_recon_loss")
             self._check_nan(total_loss, "train_total_loss")
+            self._check_nan(emotion_util_loss, "train_emotion_utilization_loss")
             
             self.log_dict(
                 {
                     "train_recon_loss": recon_loss.detach(),
                     "train_total_loss": total_loss.detach(),
+                    "train_emotion_utilization_loss": emotion_util_loss.detach(),
                 },
                 prog_bar=True,
                 on_step=True,
@@ -240,13 +261,15 @@ class EmotionDisentangleModule(pl.LightningModule):
 
             recon_loss = F.mse_loss(x_hat, x)
             fool_loss = F.cross_entropy(fool_logits, emotion_labs)
+            emotion_util_loss = self._compute_emotion_utilization_loss(x, emotion_emb) if self.emotion_utilization_weight > 0 else 0.0
 
-            ae_loss = recon_loss + fool_loss
+            ae_loss = recon_loss + fool_loss + self.emotion_utilization_weight * emotion_util_loss
             
             # Check for NaN
             self._check_nan(recon_loss, "train_recon_loss")
             self._check_nan(fool_loss, "train_fool_loss")
             self._check_nan(ae_loss, "train_ae_loss")
+            self._check_nan(emotion_util_loss, "train_emotion_utilization_loss")
 
             opt_ae.zero_grad()
             self.manual_backward(ae_loss)
@@ -269,6 +292,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                     "train_ae_loss": ae_loss.detach(),
                     "train_adv_acc": adv_acc.detach(),
                     "train_fool_loss": fool_loss.detach(),
+                    "train_emotion_utilization_loss": emotion_util_loss.detach(),
                     "train_total_loss": ae_loss.detach(),
                 },
                 prog_bar=True,
@@ -353,6 +377,36 @@ class EmotionDisentangleModule(pl.LightningModule):
                 ]
             else:
                 return [opt_ae, opt_adv]
+            
+    def on_validation_epoch_end(self):
+        """Computes impact of emotion embedding on reconstruction by permuting emotion embeddings and measuring change in recon."""
+        
+        if self.trainer.datamodule is not None:
+            validation_dataloader = self.trainer.datamodule.val_dataloader()
+        else:
+            validation_dataloader = self.trainer.val_dataloaders
+            if isinstance(validation_dataloader, (list, tuple)):
+                validation_dataloader = validation_dataloader[0]
+
+        test_batch = next(iter(validation_dataloader))
+        x, emotion_emb, _, _ = test_batch
+        
+        x = x.to(self.device)
+        emotion_emb = emotion_emb.to(self.device)
+        
+        x_hat_self_recon, _ = self(x, emotion_emb)
+        
+        _ones = torch.ones_like(emotion_emb)
+        emotion_emb_shuffled = torch.stack( [torch.remainder(emotion_emb + _ones * i, 9 * _ones) for i in range(1,9)], dim=0).to(x.device) # Permute emotion embeddings
+        
+        recon_diffs = []
+        for emotion_emb_perm in emotion_emb_shuffled:
+            x_hat_perm, _ = self(x, emotion_emb_perm)
+            recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
+            
+        mean_diff = torch.mean(torch.tensor(recon_diffs)).to(self.device)
+        
+        self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
