@@ -22,7 +22,7 @@ if __name__ == "__main__":
     split = "train"
     
     mode = "random"  # "average" or "random"
-    min_dist_random = 0.4  # Minimum cosine distance between randomly selected samples for "random" mode
+    min_dist_random = 0.1  # Minimum cosine distance between randomly selected samples for "random" mode
     max_random_samples = 1000  # Maximum number of random samples to try before giving up
 
     save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}_{mode}.pt"
