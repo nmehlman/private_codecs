@@ -21,12 +21,12 @@ if __name__ == "__main__":
     codec = "encodec"
     split = "train"
     
-    mode = "average"  # "average" or "random"
-    min_dist_random = 0.1  # Minimum cosine distance between randomly selected samples for "random" mode
+    mode = "random"  # "average" or "random"
+    min_dist_random = 0.05  # Minimum cosine distance between randomly selected samples for "random" mode
     max_random_samples = 5000  # Maximum number of random samples to try before giving up
 
     save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}_{mode}.pt"
-    save_stats = False
+    save_stats = True
     
     dataset = EmbeddingDataset(
         dataset_path=data_path,
