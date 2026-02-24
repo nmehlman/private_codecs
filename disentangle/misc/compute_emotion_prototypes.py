@@ -21,7 +21,7 @@ if __name__ == "__main__":
     codec = "encodec"
     split = "train"
     
-    mode = "random"  # "average" or "random"
+    mode = "average"  # "average" or "random"
     min_dist_random = 0.05  # Minimum cosine distance between randomly selected samples for "random" mode
     max_random_samples = 5000  # Maximum number of random samples to try before giving up
 
