@@ -22,18 +22,25 @@ class DisentanglementAE(nn.Module):
 
         self.conditioning_dropout = conditioning_dropout
 
+    def _conditioning_dropout(self, emotion_embed: torch.Tensor) -> torch.Tensor:
+    
+        b = emotion_embed.size(0)
+        do_swap = (torch.rand(b, device=emotion_embed.device) < self.conditioning_dropout)
+        perm = torch.randperm(b, device=emotion_embed.device)
+        swapped = emotion_embed[perm]
+        emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
+
+        return emotion_embed
+
     def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
         
         z = self.encoder(codec_output)
         
         if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
-            b = emotion_embed.size(0)
-            do_swap = (torch.rand(b, device=emotion_embed.device) < self.conditioning_dropout)
-            perm = torch.randperm(b, device=emotion_embed.device)
-            swapped = emotion_embed[perm]
-            emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
+            emotion_embed = self._conditioning_dropout(emotion_embed)
         
-        z_cat = torch.cat([z, emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))], dim=1)
+        z_cat = torch.cat([z, emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))], dim=1) # Concat per time step
+
         x_hat = self.decoder(z_cat)
 
         return x_hat, z
