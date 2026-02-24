@@ -26,16 +26,13 @@ lightning:
   enc_channels: [256, 128]
   dec_channels: [256]
   conditioning_dim: 256
-  conditioning_dropout: 0.0
   num_emotion_classes: 9
   learning_rate: 0.002
   weight_decay: 0
   normalize_input: true
-  use_adversarial: false
+  use_adversarial: true
   lr_scheduling: true
   gradient_clip_val: 1.0
-  emotion_utilization_weight: 100.0
-  emotion_utilization_margin: 0.003
 
 
 # Training options:
