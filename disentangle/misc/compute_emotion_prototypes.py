@@ -20,7 +20,13 @@ if __name__ == "__main__":
     emotion_model = "wavlm"
     codec = "encodec"
     split = "train"
-    save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}.pt"
+    
+    mode = "average"
+    min_dist_random = 0.2  # Minimum cosine distance between randomly selected samples for "random" mode
+    max_random_samples = 1000  # Maximum number of random samples to try before giving up
+
+    save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}_{mode}.pt"
+    save_stats = False
     
     dataset = EmbeddingDataset(
         dataset_path=data_path,
@@ -41,10 +47,36 @@ if __name__ == "__main__":
         grouped_embeddings[emotion_lab_str].append(emotion_emb)
     
     # Compute mean prototype for each emotion
-    emotion_prototypes = {
-        emotion_lab: torch.mean(torch.stack(emb_list), dim=0) 
-        for emotion_lab, emb_list in grouped_embeddings.items() if emb_list is not None
-    }
+    if mode == "average":
+        emotion_prototypes = {
+            emotion_lab: torch.mean(torch.stack(emb_list), dim=0) 
+            for emotion_lab, emb_list in grouped_embeddings.items() if emb_list is not None
+        }
+    elif mode == "random":
+        
+        distance_criterion_met = False
+        samples_taken = 0
+
+        while not distance_criterion_met and samples_taken < max_random_samples:
+            samples_taken += 1
+            
+            emotion_prototypes = {}
+            for emotion_lab, emb_list in grouped_embeddings.items():
+                if emb_list is not None:
+                    emotion_prototypes[emotion_lab] = emb_list[torch.randint(len(emb_list), (1,)).item()]
+            
+            # Check distance criterion
+            all_embeddings = list(emotion_prototypes.values())
+            all_embeddings_norm = [torch.nn.functional.normalize(emb, p=2, dim=0) for emb in all_embeddings]
+            cosine_sim_matrix = torch.mm(torch.stack(all_embeddings_norm), torch.stack(all_embeddings_norm).t())
+            cosine_dist_matrix = 1 - cosine_sim_matrix
+            upper_triangular_indices = torch.triu_indices(cosine_dist_matrix.size(0), cosine_dist_matrix.size(1), offset=1)
+            distances = cosine_dist_matrix[upper_triangular_indices[0], upper_triangular_indices[1]]
+            if (distances >= min_dist_random).all():
+                distance_criterion_met = True
+
+            elif samples_taken >= max_random_samples:
+                raise ValueError(f"Could not find random prototypes meeting distance criterion after {max_random_samples} samples. Consider lowering min_dist_random or increasing max_random_samples.")
 
     # Compute intra-class similarity (within each emotion)
     intra_similarity = {}
@@ -83,9 +115,10 @@ if __name__ == "__main__":
         'inter_similarity': inter_similarity
     }
     
-    stats_path = save_path.replace('.pt', '_stats.json')
-    with open(stats_path, 'w') as f:
-        json.dump(stats, f, indent=2)
+    if save_stats:
+        stats_path = save_path.replace('.pt', '_stats.json')
+        with open(stats_path, 'w') as f:
+            json.dump(stats, f, indent=2)
         
     torch.save(emotion_prototypes, save_path)
         
