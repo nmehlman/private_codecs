@@ -1,5 +1,3 @@
-
-
 # Basic training configuration for Expresso with Encodec features
 
 ---
@@ -12,7 +10,8 @@ input_type: "quantized_embedding"
 
 # Dataset options:
 dataset:
-  dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
+  dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/"
+  codec: "encodec"
   emotion_model: "wavlm"
 
 # Dataloader options:
@@ -24,19 +23,20 @@ dataloader:
 lightning:
   codec_dim: 128
   latent_dim: 64
-  enc_channels: [128]
-  dec_channels: [128]
+  enc_channels: [256, 128]
+  dec_channels: [256]
   conditioning_dim: 256
-  conditioning_dropout: 0.4
+  conditioning_dropout: 0.0
   num_emotion_classes: 9
-  adversarial_channels: [64, 64, 64]
-  adv_loss_weight: 0.02
-  learning_rate: 0.001
+  learning_rate: 0.002
   weight_decay: 0
-  adv_annealing_steps: 1000
-  adv_update_factor: 1
   normalize_input: true
+  use_adversarial: false
   lr_scheduling: true
+  gradient_clip_val: 1.0
+  emotion_utilization_weight: 100.0
+  emotion_utilization_margin: 0.003
+
 
 # Training options:
 trainer:
@@ -53,5 +53,4 @@ trainer:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
   name: "debug"
-  version: null     # Automatic versioning if set to null (recommended)
-
+  version: null  
