@@ -22,7 +22,7 @@ if __name__ == "__main__":
     split = "train"
     
     mode = "average"
-    min_dist_random = 0.2  # Minimum cosine distance between randomly selected samples for "random" mode
+    min_dist_random = 0.4  # Minimum cosine distance between randomly selected samples for "random" mode
     max_random_samples = 1000  # Maximum number of random samples to try before giving up
 
     save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}_{mode}.pt"
@@ -74,6 +74,7 @@ if __name__ == "__main__":
             distances = cosine_dist_matrix[upper_triangular_indices[0], upper_triangular_indices[1]]
             if (distances >= min_dist_random).all():
                 distance_criterion_met = True
+                print(f"Found prototypes meeting distance criterion after {samples_taken} random samples.")
 
             elif samples_taken >= max_random_samples:
                 raise ValueError(f"Could not find random prototypes meeting distance criterion after {max_random_samples} samples. Consider lowering min_dist_random or increasing max_random_samples.")
