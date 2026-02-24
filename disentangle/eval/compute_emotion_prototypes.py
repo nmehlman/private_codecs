@@ -42,6 +42,41 @@ if __name__ == "__main__":
         emotion_lab: torch.mean(torch.stack(emb_list), dim=0) 
         for emotion_lab, emb_list in grouped_embeddings.items() if emb_list is not None
     }
+
+    # Compute intra-class similarity (within each emotion)
+    intra_similarity = {}
+    for emotion_lab, emb_list in grouped_embeddings.items():
+        if emb_list is not None:
+            emb_stack = torch.stack(emb_list)
+            # Normalize for cosine similarity
+            emb_norm = torch.nn.functional.normalize(emb_stack, p=2, dim=1)
+            cosine_sim = torch.mm(emb_norm, emb_norm.t())
+            # Remove diagonal and compute mean
+            mask = ~torch.eye(cosine_sim.shape[0], dtype=torch.bool)
+            intra_similarity[emotion_lab] = {
+                'cosine': cosine_sim[mask].mean().item(),
+                'l2': torch.cdist(emb_stack, emb_stack).mean().item()
+            }
+
+    # Compute inter-class similarity (between different emotions)
+    inter_similarity = {}
+    emotion_labs = list(grouped_embeddings.keys())
+    for i, lab1 in enumerate(emotion_labs):
+        for lab2 in emotion_labs[i+1:]:
+            if grouped_embeddings[lab1] is not None and grouped_embeddings[lab2] is not None:
+                emb_stack1 = torch.stack(grouped_embeddings[lab1])
+                emb_stack2 = torch.stack(grouped_embeddings[lab2])
+                emb_norm1 = torch.nn.functional.normalize(emb_stack1, p=2, dim=1)
+                emb_norm2 = torch.nn.functional.normalize(emb_stack2, p=2, dim=1)
+                cosine_sim = torch.mm(emb_norm1, emb_norm2.t()).mean().item()
+                l2_dist = torch.cdist(emb_stack1, emb_stack2).mean().item()
+                inter_similarity[f"{lab1}-{lab2}"] = {
+                    'cosine': cosine_sim,
+                    'l2': l2_dist
+                }
+
+    print("Intra-class similarity:", intra_similarity)
+    print("Inter-class similarity:", inter_similarity)
         
     torch.save(emotion_prototypes, save_path)
         
