@@ -57,7 +57,7 @@ if __name__ == "__main__":
         distance_criterion_met = False
         samples_taken = 0
 
-        while not distance_criterion_met and samples_taken < max_random_samples:
+        while not distance_criterion_met:
             samples_taken += 1
             
             emotion_prototypes = {}
