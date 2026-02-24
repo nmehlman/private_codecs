@@ -15,14 +15,16 @@ VP_EMOTION_LABELS = [
 
 if __name__ == "__main__":
     
-    data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
+    data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/"
     emotion_model = "wavlm"
+    codec = "encodec"
     split = "train"
     save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}.pt"
     
     dataset = EmbeddingDataset(
         dataset_path=data_path,
         split=split,
+        codec=codec,
         emotion_model=emotion_model
     )
     
