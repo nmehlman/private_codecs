@@ -21,6 +21,7 @@ import pickle
 import random
 
 from disentangle.lightning import compute_difference_metric
+from disentangle.eval.conditioning_ablation import compute_conditioning_ablation
 
 def get_stats(tensor):
         return {
@@ -32,7 +33,9 @@ def get_stats(tensor):
 
 
 def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes, dataset_sr, codec_sr, emotion_conditioning_model, config):
+    
     """Process a single sample with exhaustive strategy (all emotion prototypes)."""
+    
     audio = sample["audio"].to(config["device"])
     label = sample["emotion"]
     filename = sample["filename"]
@@ -102,6 +105,11 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
         )    
+
+    # Run conditioning ablation
+    conditioning_ablation_results = compute_conditioning_ablation(
+        pl_model, quantized_embedding, emotion_embedding[f"{emotion_conditioning_model}_embedding"]
+    )
     
     # Build results dict - note that emotion_logits_private is a dict of logits
     results = {
@@ -122,7 +130,8 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": {emotion: compute_difference_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()}
+        "difference_metrics": {emotion: compute_difference_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()},
+        "conditioning_ablation": conditioning_ablation_results
     }
     
     return results
@@ -192,7 +201,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
         )    
-    
+
     # Build results dict
     results = {
         "filename": filename,
@@ -213,7 +222,7 @@ def process_sample_targeted(sample, codec, pl_model, emotion_model, prototypes, 
         "audio_private": audio_private.cpu().squeeze(),
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": compute_different_metric(embedding_self_recon, embedding_private)
+        "difference_metrics": compute_difference_metric(embedding_self_recon, embedding_private)
     }
     
     return results
@@ -455,6 +464,7 @@ if __name__ == "__main__":
             "self_recon_embedding_stats": results["self_recon_embedding_stats"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
+            "conditioning_ablation": results["conditioning_ablation"]
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
