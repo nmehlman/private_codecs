@@ -18,7 +18,7 @@ class DisentanglementAE(nn.Module):
         super(DisentanglementAE, self).__init__()
         
         self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, **kwargs)
-        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, causal=False, disable_final_activation=True, **kwargs)
+        self.decoder = TCN(latent_dim + conditioning_dim, dec_channels + [codec_dim], causal=False, disable_final_activation=True, **kwargs)
 
         self.conditioning_dropout = conditioning_dropout
 
@@ -33,7 +33,9 @@ class DisentanglementAE(nn.Module):
             swapped = emotion_embed[perm]
             emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
         
-        x_hat = self.decoder(z, conditioning=emotion_embed)
+        z_cat = torch.cat([z, emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))], dim=1)
+        x_hat = self.decoder(z_cat)
+
         return x_hat, z
     
 class AttentionPooling(torch.nn.Module):
