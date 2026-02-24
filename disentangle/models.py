@@ -11,37 +11,18 @@ class DisentanglementAE(nn.Module):
                  latent_dim: int, 
                  enc_channels: list,
                  dec_channels: list, 
-                 conditioning_dim: int, 
-                 conditioning_dropout: float = 0.0, 
                  **kwargs):
         
         super(DisentanglementAE, self).__init__()
         
         self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, **kwargs)
-        self.decoder = TCN(latent_dim + conditioning_dim, dec_channels + [codec_dim], causal=False, disable_final_activation=True, **kwargs)
+        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], causal=False, disable_final_activation=True, **kwargs)
 
-        self.conditioning_dropout = conditioning_dropout
-
-    def _conditioning_dropout(self, emotion_embed: torch.Tensor) -> torch.Tensor:
-    
-        b = emotion_embed.size(0)
-        do_swap = (torch.rand(b, device=emotion_embed.device) < self.conditioning_dropout)
-        perm = torch.randperm(b, device=emotion_embed.device)
-        swapped = emotion_embed[perm]
-        emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
-
-        return emotion_embed
-
-    def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
+    def forward(self, codec_output: torch.Tensor) -> tuple:
         
         z = self.encoder(codec_output)
         
-        if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
-            emotion_embed = self._conditioning_dropout(emotion_embed)
-        
-        z_cat = torch.cat([z, emotion_embed.unsqueeze(-1).expand(-1, -1, z.size(2))], dim=1) # Concat per time step
-
-        x_hat = self.decoder(z_cat)
+        x_hat = self.decoder(z)
 
         return x_hat, z
     
@@ -107,14 +88,12 @@ if __name__ == "__main__":
     num_channels_enc = [128]
     num_channels_dec = [128]
 
-    ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec, conditioning_dim)
+    ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec)
 
     x = torch.randn(batch_size, codec_dim, seq_len)
-    cond = torch.randn(batch_size, conditioning_dim) 
 
-    x_hat, z = ae(x, cond)
+    x_hat, z = ae(x)
 
     print(f"Input shape: {x.shape}")
-    print(f"Conditioning shape: {cond.shape}")
     print(f"Latent shape: {z.shape}")
     print(f"Output shape: {x_hat.shape}")
