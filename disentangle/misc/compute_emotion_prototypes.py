@@ -18,7 +18,7 @@ if __name__ == "__main__":
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
     emotion_model = "wavlm"
     split = "train"
-    save_path = f"../misc/emotion_prototypes_expresso_{split}_{emotion_model}.pt"
+    save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}.pt"
     
     dataset = EmbeddingDataset(
         dataset_path=data_path,
