@@ -90,7 +90,7 @@ if __name__ == "__main__":
             # Remove diagonal and compute mean
             mask = ~torch.eye(cosine_sim.shape[0], dtype=torch.bool)
             intra_similarity[emotion_lab] = {
-                'cosine': cosine_sim[mask].mean().item(),
+                'cosine': 1 - cosine_sim[mask].mean().item(),
                 'l2': torch.cdist(emb_stack, emb_stack).mean().item()
             }
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 cosine_sim = torch.mm(emb_norm1, emb_norm2.t()).mean().item()
                 l2_dist = torch.cdist(emb_stack1, emb_stack2).mean().item()
                 inter_similarity[f"{lab1}-{lab2}"] = {
-                    'cosine': cosine_sim,
+                    'cosine': 1 - cosine_sim,
                     'l2': l2_dist
                 }
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             cosine_sim = torch.dot(emb_norm1, emb_norm2).item()
             l2_dist = torch.norm(emb1 - emb2).item()
             inter_prototype_similarity[f"{lab1}-{lab2}"] = {
-                'cosine': cosine_sim,
+                'cosine': 1 - cosine_sim,
                 'l2': l2_dist
             }
 
