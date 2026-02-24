@@ -35,8 +35,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         latent_dim: int,
         enc_channels: list,
         dec_channels: list,
-        conditioning_dim: int,
-        conditioning_dropout: float = 0.0,
         num_emotion_classes: int = 9,
         ae_kwargs: dict = {},
         adversarial_channels: list = [128, 128, 128],
@@ -51,8 +49,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
-        emotion_utilization_weight: float = 0.0,
-        emotion_utilization_margin: float = 0.0,
     ):
         super().__init__()
 
@@ -61,8 +57,6 @@ class EmotionDisentangleModule(pl.LightningModule):
             latent_dim=latent_dim,
             enc_channels=enc_channels,
             dec_channels=dec_channels,
-            conditioning_dim=conditioning_dim,
-            conditioning_dropout=conditioning_dropout,
             **ae_kwargs,
         )
 
@@ -87,8 +81,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
-        self.emotion_utilization_weight = emotion_utilization_weight
-        self.emotion_utilization_margin = emotion_utilization_margin
         
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
