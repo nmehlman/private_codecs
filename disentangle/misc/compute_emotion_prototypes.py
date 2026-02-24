@@ -22,7 +22,7 @@ if __name__ == "__main__":
     split = "train"
     
     mode = "random"  # "average" or "random"
-    min_dist_random = 0.1  # Minimum cosine distance between randomly selected samples for "random" mode
+    min_dist_random = 0.05  # Minimum cosine distance between randomly selected samples for "random" mode
     max_random_samples = 1000  # Maximum number of random samples to try before giving up
 
     save_path = f"./emotion_prototypes_expresso_{split}_{emotion_model}_{mode}.pt"
@@ -111,9 +111,26 @@ if __name__ == "__main__":
                     'l2': l2_dist
                 }
 
+    # Compute inter-prototype similarity (between different emotion prototypes)
+    inter_prototype_similarity = {}
+    prototype_labs = list(emotion_prototypes.keys())
+    for i, lab1 in enumerate(prototype_labs):
+        for lab2 in prototype_labs[i+1:]:
+            emb1 = emotion_prototypes[lab1]
+            emb2 = emotion_prototypes[lab2]
+            emb_norm1 = torch.nn.functional.normalize(emb1, p=2, dim=0)
+            emb_norm2 = torch.nn.functional.normalize(emb2, p=2, dim=0)
+            cosine_sim = torch.dot(emb_norm1, emb_norm2).item()
+            l2_dist = torch.norm(emb1 - emb2).item()
+            inter_prototype_similarity[f"{lab1}-{lab2}"] = {
+                'cosine': cosine_sim,
+                'l2': l2_dist
+            }
+
     stats = {
         'intra_similarity': intra_similarity,
-        'inter_similarity': inter_similarity
+        'inter_similarity': inter_similarity,
+        'prototype_similarity': inter_prototype_similarity
     }
     
     if save_stats:
