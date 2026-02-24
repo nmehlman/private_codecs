@@ -25,7 +25,6 @@ lightning:
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
-  conditioning_dim: 256
   num_emotion_classes: 9
   learning_rate: 0.002
   weight_decay: 0
