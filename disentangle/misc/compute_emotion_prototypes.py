@@ -1,5 +1,6 @@
 from disentangle.codec_data import EmbeddingDataset
 import torch
+import json
 
 VP_EMOTION_LABELS = [
         'Anger', # 0
@@ -77,8 +78,14 @@ if __name__ == "__main__":
                     'l2': l2_dist
                 }
 
-    print("Intra-class similarity:", intra_similarity)
-    print("Inter-class similarity:", inter_similarity)
+    stats = {
+        'intra_similarity': intra_similarity,
+        'inter_similarity': inter_similarity
+    }
+    
+    stats_path = save_path.replace('.pt', '_stats.json')
+    with open(stats_path, 'w') as f:
+        json.dump(stats, f, indent=2)
         
     torch.save(emotion_prototypes, save_path)
         
