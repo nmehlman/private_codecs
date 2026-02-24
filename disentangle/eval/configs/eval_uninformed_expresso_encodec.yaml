@@ -9,6 +9,7 @@ log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/no-film
 ckpt_name: null
 num_samples_to_save: 10
 strategy: "exhaustive" # "exhaustive", "targeted", "random"; target_emotion used only if strategy is "targeted"
+prototype_mode: "random"
 target_emotion: "Neutral"  # Emotion classes: Anger(0), Contempt(1), Disgust(2), Fear(3), Happiness(4), Neutral(5), Sadness(6), Surprise(7), Other(8)
 
 emotion_conditioning_model: "wavlm"

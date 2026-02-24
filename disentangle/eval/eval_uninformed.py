@@ -409,7 +409,7 @@ if __name__ == "__main__":
         raise ValueError(f"Strategy {strategy} not recognized.")
 
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
-    prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model)
+    prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model, mode=config.get("prototype_mode", "average"))
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
