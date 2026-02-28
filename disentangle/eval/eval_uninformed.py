@@ -426,11 +426,11 @@ if __name__ == "__main__":
     dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["dataset"], split="dev") # CHANGEME to test when ready
     
-    test_batch = [dataset[i] for i in range(16)]
-    x, emotion_emb, _, _ = test_batch
+    x = [dataset[i][0] for i in range(16)]
+    emotion_emb = [dataset[i][1] for i in range(16)]
     
-    x = x.to(config["device"])
-    emotion_emb = emotion_emb.to(config["device"])
+    x = torch.stack(x, dim=0).to(config["device"])
+    emotion_emb = torch.stack(emotion_emb, dim=0).to(config["device"])
     
     x_hat_self_recon, _ = pl_model(x, emotion_emb)
     
