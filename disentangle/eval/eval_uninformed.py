@@ -426,56 +426,25 @@ if __name__ == "__main__":
     dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["dataset"], split="dev") # CHANGEME to test when ready
     
-    # Process each sample
-    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
+    test_batch = [dataset[i] for i in range(16)]
+    x, emotion_emb, _, _ = test_batch
+    
+    x = x.to(config["device"])
+    emotion_emb = emotion_emb.to(config["device"])
+    
+    x_hat_self_recon, _ = pl_model(x, emotion_emb)
+    
+    _ones = torch.ones_like(emotion_emb)
+    emotion_emb_shuffled = torch.stack( [torch.remainder(emotion_emb + _ones * i, 9 * _ones) for i in range(1,9)], dim=0).to(x.device) # Permute emotion embeddings
+    
+    recon_diffs = []
+    for emotion_emb_perm in emotion_emb_shuffled:
+        x_hat_perm, _ = pl_model(x, emotion_emb_perm)
+        recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
         
-        if strategy == "exhaustive":
-            results = process_sample_exhaustive(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        elif strategy == "targeted":
-            assert "target_emotion" in config, "Target emotion must be specified for targeted strategy."
-            results = process_sample_targeted(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        elif strategy == "random":
-            results = process_sample_random(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        else:
-            raise NotImplementedError(f"Strategy {strategy} not implemented (yet).")
-        
-        # Build save dict, optionally excluding audio to save space
-        save_dict = {
-            "filename": results["filename"],
-            "label": results["label"],
-            "whisper_emotion_logits_raw": results["whisper_emotion_logits_raw"],
-            "whisper_emotion_logits_private": results["whisper_emotion_logits_private"],
-            "wavlm_emotion_logits_raw": results["wavlm_emotion_logits_raw"],
-            "wavlm_emotion_logits_private": results["wavlm_emotion_logits_private"],
-            "whisper_emotion_logits_self_recon": results["whisper_emotion_logits_self_recon"],
-            "wavlm_emotion_logits_self_recon": results["wavlm_emotion_logits_self_recon"],
-            "whisper_emotion_logits_codec_only": results["whisper_emotion_logits_codec_only"],
-            "wavlm_emotion_logits_codec_only": results["wavlm_emotion_logits_codec_only"],
-            "raw_embedding_stats": results["raw_embedding_stats"],
-            "self_recon_embedding_stats": results["self_recon_embedding_stats"],
-            "private_embedding_stats": results["private_embedding_stats"],
-            "difference_metrics": results["difference_metrics"],
-            "conditioning_ablation": results["conditioning_ablation"]
-        }
-        
-        if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
-            save_dict["audio_raw"] = results["audio_raw"]
-            save_dict["audio_private"] = results["audio_private"]
-            save_dict["audio_self_recon"] = results["audio_self_recon"]
-            save_dict["audio_codec_only"] = results["audio_codec_only"]
-        
-        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
-        with open(save_path, "wb") as f:
-            pickle.dump(save_dict, f)
+    mean_diff = torch.mean(torch.tensor(recon_diffs)).to(config["device"])
+
+    print(f"Mean difference between self-reconstruction and permuted emotion reconstructions: {mean_diff.item()}")
 
     
     
