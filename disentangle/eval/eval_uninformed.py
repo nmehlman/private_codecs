@@ -6,6 +6,7 @@ from network.models import VoxProfileEmotionModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
+from disentangle.codec_data import EmbeddingDataset
 
 import argparse
 import os
@@ -423,8 +424,10 @@ if __name__ == "__main__":
     codec = codec_class(device=config["device"])
     
     # Load dataset and create dataloader
-    dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["dataset"], split="dev") # CHANGEME to test when ready
+    dataset = EmbeddingDataset(
+        dataset_path="/project2/shrikann_35/DATA/expresso/codec_feats/",
+        split="dev"
+    )
     
     x = [dataset[i][0] for i in range(16)]
     emotion_emb = [dataset[i][1] for i in range(16)]
