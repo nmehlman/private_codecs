@@ -429,8 +429,10 @@ if __name__ == "__main__":
         split="dev"
     )
     
-    x = [dataset[i][0] for i in range(16)]
-    emotion_emb = [dataset[i][1] for i in range(16)]
+    batch_size = 8
+    
+    x = [dataset[i][0] for i in range(batch_size)]
+    emotion_emb = [dataset[i][1] for i in range(batch_size)]
     
     x = torch.stack(x, dim=0).to(config["device"])
     emotion_emb = torch.stack(emotion_emb, dim=0).to(config["device"])
