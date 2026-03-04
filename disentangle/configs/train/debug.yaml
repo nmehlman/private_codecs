@@ -18,7 +18,7 @@ dataset:
 
 # Dataloader options:
 dataloader:
-  batch_size: 64
+  batch_size: 32
   num_workers: 4
 
 # Model options:
@@ -28,7 +28,7 @@ lightning:
   enc_channels: [256]
   dec_channels: [128]
   conditioning_dim: 256
-  conditioning_dropout: 0.4
+  conditioning_dropout: 0.0
   num_emotion_classes: 9
   adversarial_channels: [64, 64, 64]
   adv_loss_weight: 0.02
