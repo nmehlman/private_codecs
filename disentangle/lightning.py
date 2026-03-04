@@ -6,6 +6,9 @@ import torch.nn.functional as F
 from torch.autograd import Function
 from torchmetrics import Accuracy
 
+from itertools import permutations
+
+from disentangle.eval.eval_uninformed import compute_difference_metric
 from disentangle.models import AdversarialClassifier, DisentanglementAE
 
 
@@ -336,6 +339,39 @@ class EmotionDisentangleModule(pl.LightningModule):
                 ]
             else:
                 return [opt_ae, opt_adv]
+
+    def on_validation_epoch_end(self):
+        """Computes impact of emotion embedding on reconstruction by permuting emotion embeddings and measuring change in recon."""
+        
+        if self.trainer.datamodule is not None:
+            validation_dataloader = self.trainer.datamodule.val_dataloader()
+        else:
+            validation_dataloader = self.trainer.val_dataloaders
+            if isinstance(validation_dataloader, (list, tuple)):
+                validation_dataloader = validation_dataloader[0]
+
+        test_batch = next(iter(validation_dataloader)) # Get a single batch from validation dataloader
+        x, emotion_emb, _, _ = test_batch
+        
+        x = x.to(self.device)
+        emotion_emb = emotion_emb.to(self.device)
+        
+        x_hat_self_recon, _ = self(x, emotion_emb)
+        
+        batch_size = emotion_emb.size(0)
+        all_perms = list(permutations(range(batch_size)))
+        derangements = [perm for perm in all_perms if all(i != perm[i] for i in range(batch_size))]
+        
+        emotion_emb_shuffled = torch.stack([emotion_emb[torch.tensor(perm)] for perm in derangements])
+        
+        recon_diffs = []
+        for emotion_emb_perm in emotion_emb_shuffled:
+            x_hat_perm, _ = self(x, emotion_emb_perm)
+            recon_diffs.append(compute_difference_metric(x_hat_self_recon, x_hat_perm))
+            
+        mean_diff = torch.mean(torch.tensor(recon_diffs)).to(self.device)
+        
+        self.log("val_difference_metric", mean_diff, on_epoch=True, sync_dist=True)
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
