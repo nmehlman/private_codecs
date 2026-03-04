@@ -127,14 +127,16 @@ def get_dataloaders(
     
 if __name__ == "__main__":
 
-    data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
+    data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/"
     emotion_model = "wavlm"
+    codec = "hificodec"
     
     stats = {}
 
     # Compute statistics for quantized embeddings
     quantized_dataset = EmbeddingDataset(
         dataset_path=data_path,
+        codec=codec,
         split="train",
         input_type="quantized_embedding",
         emotion_model=emotion_model
@@ -205,7 +207,7 @@ if __name__ == "__main__":
     }
 
     # Save statistics to JSON file
-    output_path = "embedding_stats.json"
+    output_path = f"dataset_stats_{codec}_expresso.json"
     with open(output_path, "w") as f:
         json.dump(stats, f, indent=2)
     print(f"\n{'='*60}")
