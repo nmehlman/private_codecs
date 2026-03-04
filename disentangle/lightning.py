@@ -7,6 +7,7 @@ from torch.autograd import Function
 from torchmetrics import Accuracy
 
 from disentangle.models import AdversarialClassifier, DisentanglementAE
+from itertools import permutations
 
 def compute_difference_metric(emb_self_recon, emb_private):
     """Compute some metric between self-reconstructed and private embeddings."""
@@ -388,7 +389,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             if isinstance(validation_dataloader, (list, tuple)):
                 validation_dataloader = validation_dataloader[0]
 
-        test_batch = next(iter(validation_dataloader))
+        test_batch = next(iter(validation_dataloader)) # Get a single batch from validation dataloader
         x, emotion_emb, _, _ = test_batch
         
         x = x.to(self.device)
@@ -396,8 +397,11 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         x_hat_self_recon, _ = self(x, emotion_emb)
         
-        _ones = torch.ones_like(emotion_emb)
-        emotion_emb_shuffled = torch.stack( [torch.remainder(emotion_emb + _ones * i, 9 * _ones) for i in range(1,9)], dim=0).to(x.device) # Permute emotion embeddings
+        batch_size = emotion_emb.size(0)
+        all_perms = list(permutations(range(batch_size)))
+        derangements = [perm for perm in all_perms if all(i != perm[i] for i in range(batch_size))]
+        
+        emotion_emb_shuffled = torch.stack([emotion_emb[torch.tensor(perm)] for perm in derangements])
         
         recon_diffs = []
         for emotion_emb_perm in emotion_emb_shuffled:
