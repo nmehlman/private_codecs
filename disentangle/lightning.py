@@ -365,7 +365,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         batch_size = emotion_emb.size(0)
         test_perms = [torch.randperm(batch_size) for _ in range(n_test_perms)]  # Generate random permutations of the batch indices        
-        emotion_emb_shuffled = torch.stack([emotion_emb[torch.tensor(perm)] for perm in test_perms])
+        emotion_emb_shuffled = torch.stack([emotion_emb[perm] for perm in test_perms])
         
         recon_diffs = []
         for emotion_emb_perm in emotion_emb_shuffled:
