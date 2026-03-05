@@ -167,6 +167,7 @@ class EmotionDisentangleModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, emotion_emb, emotion_labs, lengths = batch
+        print(x.shape) # DEBUG
         
         if not self.use_adversarial:
             # AE-only training with automatic optimization
