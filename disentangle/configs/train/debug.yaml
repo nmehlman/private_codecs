@@ -19,7 +19,7 @@ dataset:
 # Dataloader options:
 dataloader:
   batch_size: 8
-  num_workers: 4
+  num_workers: 0
 
 # Model options:
 lightning:
