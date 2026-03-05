@@ -27,7 +27,7 @@ def bytes_per_sample(sample):
     return total
 
 # === CONFIG ===
-probe_samples = 128           # how many samples to measure
+probe_samples = 1024           # how many samples to measure
 batch_sizes_to_test = [8, 16, 32, 64]  # edit as needed
 num_workers_assumed = 4       # set to your common setting
 prefetch_factor = 2           # torch default; set 0 or 1 to simulate lower prefetch
