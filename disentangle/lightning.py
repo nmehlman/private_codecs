@@ -345,7 +345,7 @@ class EmotionDisentangleModule(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         """Computes impact of emotion embedding on reconstruction by permuting emotion embeddings and measuring change in recon."""
-        
+        return
         if self.trainer.datamodule is not None:
             validation_dataloader = self.trainer.datamodule.val_dataloader()
         else:
