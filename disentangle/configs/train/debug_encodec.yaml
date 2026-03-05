@@ -18,7 +18,7 @@ dataset:
 
 # Dataloader options:
 dataloader:
-  batch_size: 8
+  batch_size: 64
   num_workers: 0
 
 # Model options:
