@@ -124,7 +124,7 @@ class HifiCodec:
         audio_codes = audio_codes.to(self.device)
         recon_audio = self.model(audio_codes).squeeze(1)
         
-        return recon_audio
+        return recon_audio.squeeze()
 
 class BigCodec:
     def __init__(self, 
