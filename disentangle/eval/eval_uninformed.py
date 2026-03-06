@@ -20,6 +20,7 @@ import torchaudio
 import pickle
 import random
 from disentangle.lightning import compute_difference_metric
+from disentangle.eval.conditioning_ablation import compute_conditioning_ablation
 
 def get_stats(tensor):
         return {
@@ -101,6 +102,9 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
         )    
+        
+    # Compute conditioning ablation results
+    conditioning_ablation_results = compute_conditioning_ablation(pl_model, quantized_embedding, torch.tensor([label], dtype=torch.long).to(config["device"]))
     
     # Build results dict - note that emotion_logits_private is a dict of logits
     results = {
@@ -121,7 +125,8 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         "audio_private": {emotion: audio.cpu().squeeze() for emotion, audio in audio_private.items()},  # dict of emotion -> audio
         "audio_self_recon": audio_self_recon.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": {emotion: compute_difference_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()}
+        "difference_metrics": {emotion: compute_difference_metric(embedding_self_recon, embedding_private) for emotion, embedding_private in embeddings_private.items()},
+        "conditioning_ablation": conditioning_ablation_results
     }
     
     return results
