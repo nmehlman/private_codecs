@@ -87,6 +87,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
     with torch.no_grad():
         emotion_logits_private = {}
         for emotion in audio_private:
+            print(f"audio_private[emotion] shape: {audio_private[emotion].shape}") # DEBUG
             emotion_logits_private[emotion] = emotion_model(
                 audio_private[emotion], sr=dataset_sr, return_embeddings=False, 
                 lengths=torch.tensor([length]).to(config["device"])
