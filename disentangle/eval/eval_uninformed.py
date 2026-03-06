@@ -104,7 +104,7 @@ def process_sample_exhaustive(sample, codec, pl_model, emotion_model, prototypes
         )    
         
     # Compute conditioning ablation results
-    conditioning_ablation_results = compute_conditioning_ablation(pl_model, quantized_embedding, torch.tensor([label], dtype=torch.long).to(config["device"]))
+    conditioning_ablation_results = compute_conditioning_ablation(pl_model, quantized_embedding, emotion_embedding)
     
     # Build results dict - note that emotion_logits_private is a dict of logits
     results = {

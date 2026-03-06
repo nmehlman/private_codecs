@@ -5,7 +5,7 @@ from disentangle.lightning import compute_difference_metric
 def compute_conditioning_ablation(
         pl_model: LightningModule,
         embedding: torch.Tensor,
-        emotion_label: torch.Tensor,
+        emotion_embed: torch.Tensor,
         delta: float = 1e-2,
         alpha: float = 10.0
     ):
@@ -13,7 +13,6 @@ def compute_conditioning_ablation(
     ae = pl_model.ae
 
     z = ae.encoder(embedding)
-    emotion_embed = ae.embedding_table(emotion_label)
 
     correct_embedding_recon = ae.decoder(z, emotion_embed)
     zeros_embedding_recon = ae.decoder(z, torch.zeros_like(emotion_embed))  
