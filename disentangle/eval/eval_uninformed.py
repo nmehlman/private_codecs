@@ -459,6 +459,7 @@ if __name__ == "__main__":
             "self_recon_embedding_stats": results["self_recon_embedding_stats"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
+            "conditioning_ablation": results["conditioning_ablation"]
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
