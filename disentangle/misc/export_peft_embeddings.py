@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # Load PEFT model
     print(f"Loading PEFT model: {args.peft_model}")
     peft_model = peft_ser.load_model(args.peft_model, cache_folder=args.peft_cache_folder)
-    peft_model.eval()
+    peft_model.eval().to(config["device"])
 
     # Process each sample in the dataset and check if corresponding pickle file exists
     for sample in tqdm.tqdm(dataset, total=len(dataset), desc="Adding PEFT embeddings"):
