@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/"
     emotion_model = "peft"
-    codec = "hificodec"
+    codec = "encodec"
     
     stats = {}
 
