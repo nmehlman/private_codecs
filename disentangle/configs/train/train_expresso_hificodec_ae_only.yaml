@@ -32,7 +32,7 @@ lightning:
   num_emotion_classes: 9
   learning_rate: 0.002
   weight_decay: 0
-  normalize_input: true
+  normalize_input: false
   use_adversarial: false
   lr_scheduling: true
 
