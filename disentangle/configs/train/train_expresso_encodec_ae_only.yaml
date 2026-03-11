@@ -51,6 +51,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "peft_trial"
+  name: "peft-trial"
   version: null     # Automatic versioning if set to null (recommended)
 
