@@ -37,8 +37,12 @@ class EmbeddingDataset(Dataset):
             sample = pickle.load(f)
             
         features = sample[self.input_type]
-        emotion_lab = sample[f"{self.emotion_model}_emotion_logits"].argmax().item()
-        emotion_emb = sample[f"{self.emotion_model}_emotion_embedding"].detach()
+        if self.emotion_model == 'peft':
+            emotion_lab = sample["peft_logits"].argmax().item()
+            emotion_emb = sample["peft_embedding"].detach()
+        else:
+            emotion_lab = sample[f"{self.emotion_model}_emotion_logits"].argmax().item()
+            emotion_emb = sample[f"{self.emotion_model}_emotion_embedding"].detach()
         
         # Check for NaN values
         if torch.isnan(features).any():
@@ -128,7 +132,7 @@ def get_dataloaders(
 if __name__ == "__main__":
 
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/"
-    emotion_model = "wavlm"
+    emotion_model = "peft"
     codec = "hificodec"
     
     stats = {}
