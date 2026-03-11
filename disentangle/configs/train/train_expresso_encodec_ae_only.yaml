@@ -14,7 +14,7 @@ input_type: "quantized_embedding"
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/"
   codec: "encodec"
-  emotion_model: "wavlm"
+  emotion_model: "peft"
 
 # Dataloader options:
 dataloader:
@@ -51,6 +51,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "recon_tests"
+  name: "peft_trial"
   version: null     # Automatic versioning if set to null (recommended)
 
