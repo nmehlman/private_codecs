@@ -121,9 +121,7 @@ def get_dataloaders(
     loaders = {"train": train_loader, "val": val_loader}
 
     return loaders
-
-
-                    
+              
     
 if __name__ == "__main__":
 

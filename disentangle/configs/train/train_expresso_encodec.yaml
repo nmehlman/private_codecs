@@ -27,19 +27,13 @@ lightning:
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
-  conditioning_dim: 256
-  conditioning_dropout: 0.0
   num_emotion_classes: 9
   learning_rate: 0.002
-  adv_loss_weight: 0.02
   weight_decay: 0
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
-  gradient_clip_val: 2.0
-  emotion_utilization_weight: 100.0
-  emotion_utilization_margin: 0.003
-
+  gradient_clip_val: 1.0
 
 # Training options:
 trainer:
@@ -55,6 +49,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "embed-table-no-film"
+  name: "debug"
   version: null     # Automatic versioning if set to null (recommended)
 
