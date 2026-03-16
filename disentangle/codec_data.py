@@ -177,6 +177,7 @@ if __name__ == "__main__":
     # Compute statistics for raw embeddings
     raw_dataset = EmbeddingDataset(
         dataset_path=data_path,
+        codec=codec,
         split="train",
         input_type="raw_embedding",
         emotion_model=emotion_model
