@@ -35,6 +35,7 @@ lightning:
   lr_scheduling: true
   gradient_clip_val: 1.0
 
+
 # Training options:
 trainer:
   max_epochs: 500
@@ -49,6 +50,6 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "debug"
+  name: "removal-test"
   version: null     # Automatic versioning if set to null (recommended)
 
