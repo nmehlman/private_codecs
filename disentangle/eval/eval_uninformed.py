@@ -52,7 +52,6 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
         embedding_raw = codec.encode(audio, sr=dataset_sr)
         codes_raw, quantized_embedding_raw = codec.quantize(embedding_raw)
     
-    # Generate private audio for all emotion prototypes (exhaustive strategy)
     with torch.no_grad():
         embedding_private, _ = pl_model(quantized_embedding_raw)
         codes_private, embedding_private_quantized = codec.quantize(embedding_private)
@@ -179,11 +178,7 @@ if __name__ == "__main__":
     dataset_name = config["dataset_name"]
     codec_name = config["codec_name"]
     input_type = config["input_type"]
-    strategy = config["strategy"]
     emotion_conditioning_model = config["emotion_conditioning_model"]
-    
-    if strategy not in ["exhaustive", "targeted", "random"]:
-        raise ValueError(f"Strategy {strategy} not recognized.")
 
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
     prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model, mode=config.get("prototype_mode", "average"))
@@ -206,24 +201,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        if strategy == "exhaustive":
-            results = process_sample_exhaustive(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        elif strategy == "targeted":
-            assert "target_emotion" in config, "Target emotion must be specified for targeted strategy."
-            results = process_sample_targeted(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        elif strategy == "random":
-            results = process_sample_random(
-                sample, codec, pl_model, emotion_model, prototypes, 
-                dataset_sr, codec_sr, emotion_conditioning_model, config
-            )
-        else:
-            raise NotImplementedError(f"Strategy {strategy} not implemented (yet).")
+        results = process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr, config)
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
