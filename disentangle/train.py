@@ -101,11 +101,11 @@ class EpochInferenceCallback(Callback):
             # Resample audios to dataset sr for emotion model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            ).unsqueeze(0)
+            )
             
             audio_codec_only = torchaudio.functional.resample(
                 audio_codec_only, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            ).unsqueeze(0)
+            )
 
             print(audio_codec_only.shape, audio_private.shape)
             
