@@ -1,6 +1,7 @@
 from math import sin
 
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.consolidate_checkpoint import config
 import torch
 import torch.nn.functional as F
 from torch.autograd import Function
@@ -363,6 +364,4 @@ class EmotionDisentangleModule(pl.LightningModule):
         elif schedulers is not None:
             schedulers.step()
             self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
-            
-            
         
