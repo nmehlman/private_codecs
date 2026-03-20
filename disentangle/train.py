@@ -186,7 +186,7 @@ if __name__ == "__main__":
         emotion_model_name=config["dataset"]["emotion_model"],
         device="cuda",
         dataset_sr=config.get("dataset_sr", 16000)
-    )
+    ))
 
     # Make trainer
     trainer = Trainer(
