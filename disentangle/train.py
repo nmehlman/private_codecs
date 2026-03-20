@@ -11,11 +11,10 @@ from pytorch_lightning.loggers import TensorBoardLogger
 import os
 
 from disentangle.codec_data import get_dataloaders
-from disentangle.lightning import EmotionDisentangleModule
 from disentangle.misc.utils import load_dataset_stats
 
-from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 from network.models import VoxProfileEmotionModel
+from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 
 import torchaudio
 
