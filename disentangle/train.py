@@ -80,7 +80,9 @@ class EpochInferenceCallback(Callback):
         batch = self._move_to_device(batch, pl_module.device)
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
-        x, _, emotion_labs, lengths = batch[0]
+        
+        x, _, emotion_labs, lengths = batch
+        
         if not isinstance(x, torch.Tensor):
             return
 
