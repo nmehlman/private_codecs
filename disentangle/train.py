@@ -181,13 +181,12 @@ if __name__ == "__main__":
         yaml.dump(config, f, default_flow_style=False)
 
     callbacks = []
-    if "emotion_callback" in config:
-        callbacks.append(EpochInferenceCallback(
-            codec_name=codec_name,
-            emotion_model_name=config["dataset"]["emotion_model"],
-            device="cuda",
-            dataset_sr=config.get("dataset_sr", 16000)
-        ))
+    callbacks.append(EpochInferenceCallback(
+        codec_name=codec_name,
+        emotion_model_name=config["dataset"]["emotion_model"],
+        device="cuda",
+        dataset_sr=config.get("dataset_sr", 16000)
+    )
 
     # Make trainer
     trainer = Trainer(
