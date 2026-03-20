@@ -5,6 +5,7 @@ random_seed: 42
 ckpt_path: null
 gpus: "0"
 dataset_name: "expresso"
+dataset_sr: 16000
 codec_name: "encodec"
 input_type: "quantized_embedding"
 
@@ -12,7 +13,6 @@ input_type: "quantized_embedding"
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/"
   codec: "encodec"
-  sample_rate: 16000 # ADDED
   emotion_model: "wavlm"
 
 # Dataloader options:

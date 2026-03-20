@@ -1,7 +1,6 @@
 from math import sin
 
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.consolidate_checkpoint import config
 import torch
 import torch.nn.functional as F
 from torch.autograd import Function

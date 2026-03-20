@@ -186,7 +186,7 @@ if __name__ == "__main__":
             codec_name=codec_name,
             emotion_model_name=config["dataset"]["emotion_model"],
             device="cuda",
-            dataset_sr=dataset_kwargs.get("sample_rate", 16000)
+            dataset_sr=config.get("dataset_sr", 16000)
         ))
 
     # Make trainer
