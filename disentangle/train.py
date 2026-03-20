@@ -123,7 +123,7 @@ class EpochInferenceCallback(Callback):
         emotion_probs_private = torch.softmax(emotion_logits_private, dim=-1)
         emotion_probs_codec_only = torch.softmax(emotion_logits_codec_only, dim=-1)
 
-        print(emotion_logits_private)
+        print(audio_codec_only, )
 
         emotion_accuracy_private = (emotion_probs_private.argmax(dim=-1) == emotion_labs).float().mean()
         emotion_accuracy_codec_only = (emotion_probs_codec_only.argmax(dim=-1) == emotion_labs).float().mean()
