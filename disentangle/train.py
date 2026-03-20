@@ -43,7 +43,7 @@ class EpochInferenceCallback(Callback):
         self.codec = codec_class(device=self.device)
 
         # Load emotion classifier
-        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True)[emotion_model_name]
+        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True)
 
     def _resolve_dataloader(self, trainer):
         val_dataloaders = trainer.val_dataloaders
@@ -108,12 +108,12 @@ class EpochInferenceCallback(Callback):
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
                     lengths=lengths
-                )
+                )[f"{self.emotion_model_name}_logits"]
         
             emotion_logits_codec_only = self.emotion_model(
                 audio_codec_only, sr=self.dataset_sr, return_embeddings=False,
                 lengths=lengths
-            )
+            )[f"{self.emotion_model_name}_logits"]
 
         if was_training:
             pl_module.train()
