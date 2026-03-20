@@ -13,6 +13,7 @@ import os
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
 
+from disentangle.lightning import EmotionDisentangleModule
 from network.models import VoxProfileEmotionModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 
