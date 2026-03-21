@@ -106,7 +106,10 @@ class EpochInferenceCallback(Callback):
             audio_codec_only = torchaudio.functional.resample(
                 audio_codec_only, orig_freq=self.codec_sr, new_freq=self.dataset_sr
             )
-            
+
+            print(f"Max: {audio_private.abs().max().item():.4f}, Min: {audio_private.abs().min().item():.4f}")
+            print(f"Max: {audio_codec_only.abs().max().item():.4f}, Min: {audio_codec_only.abs().min().item():.4f}")
+
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
                     lengths=lengths
