@@ -61,7 +61,7 @@ class VoxProfileEmotionModel:
             else:
                 return {"whisper_logits": whisper_logits, "wavlm_logits": wavlm_logits}
 
-        logits = 1/2 * (whisper_logits + wavlm_logits) # DEBUG
+        logits = 1/2 * (whisper_logits + wavlm_logits) 
         embedding = torch.cat([whisper_embedding, wavlm_embedding], dim=1)
         
         if return_embeddings:
