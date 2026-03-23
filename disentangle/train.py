@@ -101,22 +101,12 @@ class EpochInferenceCallback(Callback):
             # Resample audios to dataset sr for emotion model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            ).unsqueeze(0) # DEBUG
+            )
             
             audio_codec_only = torchaudio.functional.resample(
                 audio_codec_only, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            ).unsqueeze(0) # DEBUG
+            )
 
-            # DEBUG #
-            print(f"Max: {audio_private.abs().max().item():.4f}, Min: {audio_private.abs().min().item():.4f}")
-            print(f"Max: {audio_codec_only.abs().max().item():.4f}, Min: {audio_codec_only.abs().min().item():.4f}")
-            # Check for NaNs in both audio files
-            if torch.isnan(audio_private).any():
-                print("Warning: NaNs detected in audio_private")
-            if torch.isnan(audio_codec_only).any():
-                print("Warning: NaNs detected in audio_codec_only")
-            # DEBUG #
-            
             print(self.emotion_model( # DEBUG
                     audio_private, sr=self.dataset_sr, return_embeddings=True, 
                     lengths=lengths
