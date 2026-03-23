@@ -77,7 +77,7 @@ class EpochInferenceCallback(Callback):
         except StopIteration:
             return
 
-        #batch = self._move_to_device(batch, pl_module.device)
+        #batch = self._move_to_device(batch, pl_module.device) # DEBUG
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
         
