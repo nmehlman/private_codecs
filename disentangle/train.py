@@ -83,6 +83,10 @@ class EpochInferenceCallback(Callback):
         
         x, _, emotion_labs, lengths = batch
         
+        x = x.to(self.device)
+        emotion_labs = emotion_labs.to(self.device)
+        lengths = lengths.to(self.device)
+        
         if not isinstance(x, torch.Tensor):
             return
 
