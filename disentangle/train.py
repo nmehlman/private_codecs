@@ -208,7 +208,7 @@ if __name__ == "__main__":
     callbacks.append(EpochInferenceCallback(
         codec_name=codec_name,
         emotion_model_name=config["dataset"]["emotion_model"],
-        device="cpu",  # DEBUG
+        device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
     ))
 
