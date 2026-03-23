@@ -43,7 +43,7 @@ class EpochInferenceCallback(Callback):
         self.codec = codec_class(device=self.device)
 
         # Load emotion classifier
-        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True)
+        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True).eval()
 
     def _resolve_dataloader(self, trainer):
         val_dataloaders = trainer.val_dataloaders
@@ -106,6 +106,9 @@ class EpochInferenceCallback(Callback):
             audio_codec_only = torchaudio.functional.resample(
                 audio_codec_only, orig_freq=self.codec_sr, new_freq=self.dataset_sr
             )
+            
+            assert not torch.isnan(audio_private).any(), "NaNs detected in audio_private"
+            assert not torch.isnan(audio_codec_only).any(), "NaNs detected in audio_codec_only"
 
             print(self.emotion_model( # DEBUG
                     audio_private, sr=self.dataset_sr, return_embeddings=True, 
@@ -123,11 +126,8 @@ class EpochInferenceCallback(Callback):
             )[f"{self.emotion_model_name}_logits"]
         
         # DEBUG #
-        if torch.isnan(emotion_logits_private).any():
-            print("Warning: NaNs detected in emotion_logits_private")
-        if torch.isnan(emotion_logits_codec_only).any():
-            print("Warning: NaNs detected in emotion_logits_codec_only")
-        # DEBUG #
+        assert not torch.isnan(emotion_logits_private).any(), "NaNs detected in emotion_logits_private"
+        assert not torch.isnan(emotion_logits_codec_only).any(), "NaNs detected in emotion_logits_codec_only"
         
         if was_training:
             pl_module.train()
