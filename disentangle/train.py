@@ -43,7 +43,7 @@ class EpochInferenceCallback(Callback):
         self.codec = codec_class(device=self.device)
 
         # Load emotion classifier
-        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True).eval()
+        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True)
 
     def _resolve_dataloader(self, trainer):
         val_dataloaders = trainer.val_dataloaders
@@ -96,7 +96,21 @@ class EpochInferenceCallback(Callback):
             audio_private = self.codec.decode(codes_private)
 
             # Run direct recon without autoencoder
-            audio_codec_only = self.codec.decode(self.codec.quantize(x)[0])
+            codes_recon, _ = self.codec.quantize(x)
+            audio_codec_only = self.codec.decode(codes_recon)
+
+            # Convert codec-frame lengths to waveform samples for the emotion model
+            codec_seq_len = max(x.size(-1), 1)
+            codec_step_to_sample = audio_codec_only.shape[-1] / float(codec_seq_len)
+            lengths_codec_sr = torch.clamp(
+                (lengths.to(dtype=torch.float32) * codec_step_to_sample).round(),
+                min=1.0,
+            )
+            resample_ratio = float(self.dataset_sr) / float(self.codec_sr)
+            lengths_waveform = torch.clamp(
+                (lengths_codec_sr * resample_ratio).round(),
+                min=1.0,
+            ).to(dtype=torch.long)
 
             # Resample audios to dataset sr for emotion model
             audio_private = torchaudio.functional.resample(
@@ -112,17 +126,17 @@ class EpochInferenceCallback(Callback):
 
             print(self.emotion_model( # DEBUG
                     audio_private, sr=self.dataset_sr, return_embeddings=True, 
-                    lengths=torch.tensor(lengths)
+                    lengths=lengths_waveform
                 ))
 
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
-                    lengths=lengths
+                    lengths=lengths_waveform
                 )[f"{self.emotion_model_name}_logits"]
         
             emotion_logits_codec_only = self.emotion_model(
                 audio_codec_only, sr=self.dataset_sr, return_embeddings=False,
-                lengths=lengths
+                lengths=lengths_waveform
             )[f"{self.emotion_model_name}_logits"]
         
         # DEBUG #
