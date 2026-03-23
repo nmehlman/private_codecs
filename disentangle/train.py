@@ -109,7 +109,7 @@ class EpochInferenceCallback(Callback):
 
             print(self.emotion_model( # DEBUG
                     audio_private, sr=self.dataset_sr, return_embeddings=True, 
-                    lengths=lengths
+                    lengths=torch.tensor(lengths)
                 ))
 
             emotion_logits_private = self.emotion_model(
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     callbacks.append(EpochInferenceCallback(
         codec_name=codec_name,
         emotion_model_name=config["dataset"]["emotion_model"],
-        device="cpu", # DEBUG 
+        device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
     ))
 
