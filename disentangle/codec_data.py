@@ -113,7 +113,7 @@ def get_dataloaders(
     
     val_loader = DataLoader(
                             dataset = val_dset,
-                            batch_size = batch_size,
+                            batch_size = 1, # DEBUG
                             collate_fn = EmbeddingDataset.collate_function,
                             **dataloader_kwargs
                         )

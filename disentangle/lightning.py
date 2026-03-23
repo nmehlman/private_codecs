@@ -264,7 +264,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                     "train_fool_loss": fool_loss.detach(),
                     "train_total_loss": ae_loss.detach(),
                 },
-                prog_bar=True,
+                prog_bar=False,
                 on_step=True,
                 on_epoch=False,
                 sync_dist=True,
