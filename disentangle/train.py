@@ -121,8 +121,10 @@ class EpochInferenceCallback(Callback):
                 print("Warning: NaNs detected in audio_codec_only")
             # DEBUG #
             
-            audio_private = torch.randn_like(audio_private) # DEBUG
-            audio_codec_only = torch.randn_like(audio_codec_only) # DEBUG
+            print(self.emotion_model( # DEBUG
+                    audio_private, sr=self.dataset_sr, return_embeddings=True, 
+                    lengths=lengths
+                ))
 
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
