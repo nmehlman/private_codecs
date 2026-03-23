@@ -101,11 +101,11 @@ class EpochInferenceCallback(Callback):
             # Resample audios to dataset sr for emotion model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            )
+            ).unsqueeze(0) # DEBUG
             
             audio_codec_only = torchaudio.functional.resample(
                 audio_codec_only, orig_freq=self.codec_sr, new_freq=self.dataset_sr
-            )
+            ).unsqueeze(0) # DEBUG
 
             # DEBUG #
             print(f"Max: {audio_private.abs().max().item():.4f}, Min: {audio_private.abs().min().item():.4f}")
