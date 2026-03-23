@@ -77,15 +77,11 @@ class EpochInferenceCallback(Callback):
         except StopIteration:
             return
 
-        #batch = self._move_to_device(batch, pl_module.device) # DEBUG
+        batch = self._move_to_device(batch, pl_module.device)
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
         
         x, _, emotion_labs, lengths = batch
-        
-        x = x.to(self.device)
-        emotion_labs = emotion_labs.to(self.device)
-        lengths = lengths.to(self.device)
         
         if not isinstance(x, torch.Tensor):
             return
