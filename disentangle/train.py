@@ -124,11 +124,6 @@ class EpochInferenceCallback(Callback):
             assert not torch.isnan(audio_private).any(), "NaNs detected in audio_private"
             assert not torch.isnan(audio_codec_only).any(), "NaNs detected in audio_codec_only"
 
-            print(self.emotion_model( # DEBUG
-                    audio_private, sr=self.dataset_sr, return_embeddings=True, 
-                    lengths=lengths_waveform
-                ))
-
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
                     lengths=lengths_waveform
@@ -139,7 +134,6 @@ class EpochInferenceCallback(Callback):
                 lengths=lengths_waveform
             )[f"{self.emotion_model_name}_logits"]
         
-        # DEBUG #
         assert not torch.isnan(emotion_logits_private).any(), "NaNs detected in emotion_logits_private"
         assert not torch.isnan(emotion_logits_codec_only).any(), "NaNs detected in emotion_logits_codec_only"
         
