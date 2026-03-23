@@ -92,7 +92,7 @@ class EpochInferenceCallback(Callback):
 
             # Run privitization and map back to audio
             x_hat, _ = pl_module(x)
-            codes_private, embedding_private_quantized = self.codec.quantize(x_hat)
+            codes_private, _ = self.codec.quantize(x_hat)
             audio_private = self.codec.decode(codes_private)
 
             # Run direct recon without autoencoder
@@ -109,6 +109,11 @@ class EpochInferenceCallback(Callback):
 
             print(f"Max: {audio_private.abs().max().item():.4f}, Min: {audio_private.abs().min().item():.4f}")
             print(f"Max: {audio_codec_only.abs().max().item():.4f}, Min: {audio_codec_only.abs().min().item():.4f}")
+            # Check for NaNs in both audio files
+            if torch.isnan(audio_private).any():
+                print("Warning: NaNs detected in audio_private")
+            if torch.isnan(audio_codec_only).any():
+                print("Warning: NaNs detected in audio_codec_only")
 
             emotion_logits_private = self.emotion_model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
@@ -126,18 +131,16 @@ class EpochInferenceCallback(Callback):
         emotion_probs_private = torch.softmax(emotion_logits_private, dim=-1)
         emotion_probs_codec_only = torch.softmax(emotion_logits_codec_only, dim=-1)
 
-        print(audio_codec_only, )
-
         emotion_accuracy_private = (emotion_probs_private.argmax(dim=-1) == emotion_labs).float().mean()
         emotion_accuracy_codec_only = (emotion_probs_codec_only.argmax(dim=-1) == emotion_labs).float().mean()
 
         emotion_entropy_private = - (emotion_probs_private * torch.log(emotion_probs_private + 1e-8)).sum(dim=-1).mean()
         emotion_entropy_codec_only = - (emotion_probs_codec_only * torch.log(emotion_probs_codec_only + 1e-8)).sum(dim=-1).mean()
 
-        pl_module.log("epoch_inference/emotion_accuracy_private", emotion_accuracy_private, on_step=False, on_epoch=True, sync_dist=False)
-        pl_module.log("epoch_inference/emotion_accuracy_codec_only", emotion_accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=False)
-        pl_module.log("epoch_inference/emotion_entropy_private", emotion_entropy_private, on_step=False, on_epoch=True, sync_dist=False)
-        pl_module.log("epoch_inference/emotion_entropy_codec_only", emotion_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=False)
+        pl_module.log("epoch_inference/emotion_accuracy_private", emotion_accuracy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/emotion_accuracy_codec_only", emotion_accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/emotion_entropy_private", emotion_entropy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/emotion_entropy_codec_only", emotion_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")

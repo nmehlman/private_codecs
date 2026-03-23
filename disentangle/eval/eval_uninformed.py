@@ -43,7 +43,7 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
     
     # Get emotion embedding for raw audio
     with torch.no_grad():
-        emotion_logits_raw, emotion_embedding = emotion_model(
+        emotion_logits_raw, _ = emotion_model(
             audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
         )
     
