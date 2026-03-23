@@ -40,7 +40,7 @@ lightning:
 # Training options:
 trainer:
   max_epochs: 10
-  limit_train_batches: 10 
+  limit_train_batches: 1 
   val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
   log_every_n_steps: 10    
   sync_batchnorm: True
