@@ -30,8 +30,8 @@ lightning:
   num_emotion_classes: 9
   learning_rate: 0.002
   weight_decay: 0
-  adv_annealing_steps: 10000 
-  adv_loss_weight: 0.02        
+  adv_annealing_steps: 5000 
+  adv_loss_weight: 0.1        
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
