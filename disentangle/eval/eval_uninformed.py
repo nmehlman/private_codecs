@@ -214,7 +214,6 @@ if __name__ == "__main__":
             "whisper_emotion_logits_codec_only": results["whisper_emotion_logits_codec_only"],
             "wavlm_emotion_logits_codec_only": results["wavlm_emotion_logits_codec_only"],
             "raw_embedding_stats": results["raw_embedding_stats"],
-            "self_recon_embedding_stats": results["self_recon_embedding_stats"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
             "conditioning_ablation": results["conditioning_ablation"]
