@@ -211,8 +211,6 @@ if __name__ == "__main__":
             "whisper_emotion_logits_private": results["whisper_emotion_logits_private"],
             "wavlm_emotion_logits_raw": results["wavlm_emotion_logits_raw"],
             "wavlm_emotion_logits_private": results["wavlm_emotion_logits_private"],
-            "whisper_emotion_logits_self_recon": results["whisper_emotion_logits_self_recon"],
-            "wavlm_emotion_logits_self_recon": results["wavlm_emotion_logits_self_recon"],
             "whisper_emotion_logits_codec_only": results["whisper_emotion_logits_codec_only"],
             "wavlm_emotion_logits_codec_only": results["wavlm_emotion_logits_codec_only"],
             "raw_embedding_stats": results["raw_embedding_stats"],
