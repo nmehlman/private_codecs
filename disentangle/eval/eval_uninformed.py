@@ -221,7 +221,6 @@ if __name__ == "__main__":
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
             save_dict["audio_raw"] = results["audio_raw"]
             save_dict["audio_private"] = results["audio_private"]
-            save_dict["audio_self_recon"] = results["audio_self_recon"]
             save_dict["audio_codec_only"] = results["audio_codec_only"]
         
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
