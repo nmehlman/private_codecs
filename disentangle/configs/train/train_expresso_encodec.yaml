@@ -32,7 +32,7 @@ lightning:
   weight_decay: 0
   adv_annealing_steps: 20000 
   adv_loss_weight: 0.5  
-  adv_update_factor: 2      
+  adv_update_factor: 1      
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
