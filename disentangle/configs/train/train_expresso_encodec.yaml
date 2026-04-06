@@ -36,7 +36,7 @@ lightning:
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
-  gradient_clip_val: 1.0
+  gradient_clip_val: 10.0
 
 
 # Training options:
