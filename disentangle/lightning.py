@@ -273,7 +273,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, emotoion_embs, _, lengths = batch
+        x, emotion_embs, _, lengths = batch
         x_hat, z = self(x)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
