@@ -40,7 +40,7 @@ class AttentionPooling(torch.nn.Module):
         return weighted_sum
 
 class AdversarialClassifier(nn.Module):
-    def __init__(self, input_dim: int, emotion_dim: int, channels: list = [64, 64, 64], **kwargs):
+    def __init__(self, input_dim: int, emotion_dim: int, channels: list = [64, 64, 64], tau: float = 0.07, **kwargs):
         
         super(AdversarialClassifier, self).__init__()
         
@@ -56,11 +56,11 @@ class AdversarialClassifier(nn.Module):
             **kwargs
         )
 
+        self.tau = tau
         self.pooling = AttentionPooling(input_dim=channels[-1])
-        
-        self.proj = nn.Bilinear(channels[-1], emotion_dim, emotion_dim)
+        self.proj = nn.Linear(channels[-1], emotion_dim, bias=False)
 
-    def forward(self, z: torch.Tensor, emotion_embeds: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+    def forward(self, z: torch.Tensor, e: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         
         T = z.size(2)
         mask = torch.arange(T, device=z.device).unsqueeze(0) < lengths.unsqueeze(1) # Mask out padding positions
@@ -70,10 +70,14 @@ class AdversarialClassifier(nn.Module):
         assert z_encoded.dim() == 3
         assert torch.isnan(z_encoded).sum() == 0
 
-        z_pooled = self.pooling(z_encoded, mask)
-        assert torch.isnan(z_pooled).sum() == 0
+        c = self.pooling(z_encoded, mask)
+        assert torch.isnan(c).sum() == 0
 
-        
+        EC = self.proj(c) # B x emotion_dim
+
+        EC_norm = F.normalize(EC, p=2, dim=1)
+        e_norm = F.normalize(e, p=2, dim=1)
+        logits = (EC_norm @ e_norm.T) / self.tau # B x B
 
         return logits
 

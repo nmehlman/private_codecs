@@ -35,7 +35,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         latent_dim: int,
         enc_channels: list,
         dec_channels: list,
-        num_emotion_classes: int = 9,
+        emotion_dim: int,
         ae_kwargs: dict = {},
         adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
@@ -49,6 +49,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
+        tau: float = 0.07,
     ):
         super().__init__()
 
@@ -64,8 +65,9 @@ class EmotionDisentangleModule(pl.LightningModule):
         if self.use_adversarial:
             self.adv_classifier = AdversarialClassifier(
                 input_dim=latent_dim,
-                num_classes=num_emotion_classes,
+                emotion_dim=emotion_dim,
                 channels=adversarial_channels,
+                tau=tau,
                 **adversarial_kwargs,
             )
         else:
@@ -81,10 +83,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
-        
-        if self.use_adversarial:
-            self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
-            self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
 
         if self.normalize_input:
             assert self.dataset_stats, "Dataset stats must be provided for normalization."
@@ -97,9 +95,6 @@ class EmotionDisentangleModule(pl.LightningModule):
             
             self.register_buffer("ds_mean", mean.view(1, -1, 1))
             self.register_buffer("ds_std", std.view(1, -1, 1))
-
-
-    
 
     def forward(self, x):
         
@@ -164,7 +159,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
         
     def training_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
+        
+        x, emotion_embs, _, lengths = batch
+        B = x.size(0) # batch size
         
         if not self.use_adversarial:
             
@@ -194,7 +191,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         else:
         
             # Adversarial training with manual optimization
-            opt_ae, opt_adv = self.optimizers()
+            opt_ae, opt_adv = self.optimizers() # type: ignore
 
             with torch.no_grad():
                 _, z = self(x)
@@ -202,8 +199,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             # Adversary update steps
             for _ in range(self.adv_update_factor):
                 self.toggle_optimizer(opt_adv)
-                adv_logits = self.adv_classifier(z, lengths)
-                adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+                adv_logits = self.adv_classifier(z, emotion_embs, lengths) # type: ignore
+                targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
+                adv_loss = F.cross_entropy(adv_logits, targets) 
                 
                 # Check for NaN
                 self._check_nan(adv_loss, "train_adv_loss")
@@ -222,17 +220,19 @@ class EmotionDisentangleModule(pl.LightningModule):
                 opt_adv.zero_grad(set_to_none=True)
                 self.untoggle_optimizer(opt_adv)
             
-            adv_acc = self.train_accuracy(adv_logits, emotion_labs)
+            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float()) # type: ignore
 
             # AE update step
-            self._freeze(self.adv_classifier)
+            self._freeze(self.adv_classifier) # Freeze adversary during AE update
             self.toggle_optimizer(opt_ae)
             x_hat, z = self(x)
             adv_loss_weight = self._compute_adv_loss_weight()
-            fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+            
+            fool_logits = self.adv_classifier(grl(z, adv_loss_weight), emotion_embs, lengths) # type: ignore
+            fool_targets = torch.arange(fool_logits.size(0), device=fool_logits.device)
 
             recon_loss = F.mse_loss(x_hat, x)
-            fool_loss = F.cross_entropy(fool_logits, emotion_labs)
+            fool_loss = F.cross_entropy(fool_logits, fool_targets)
 
             ae_loss = recon_loss + fool_loss
             
@@ -273,7 +273,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
+        x, emotoion_embs, _, lengths = batch
         x_hat, z = self(x)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
@@ -286,8 +286,9 @@ class EmotionDisentangleModule(pl.LightningModule):
         )
 
         if self.use_adversarial:
-            adv_logits = self.adv_classifier(z, lengths)
-            adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
+            adv_logits = self.adv_classifier(z, emotion_embs, lengths) # type: ignore
+            targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
+            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float()) # type: ignore
             self.log(
                 "val_adv_acc",
                 adv_acc.detach(),
