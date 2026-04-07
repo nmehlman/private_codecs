@@ -1,4 +1,5 @@
 from math import sin
+from typing import Any, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -20,8 +21,8 @@ class GradReverse(Function):
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx, grad_output):
-        return -ctx.lambd * grad_output, None
+    def backward(ctx, grad_outputs):
+        return -ctx.lambd * grad_outputs, None
 
 
 def grl(x, lambd: float):
@@ -62,6 +63,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         )
 
         self.use_adversarial = use_adversarial
+        self.adv_classifier: Optional[AdversarialClassifier]
         if self.use_adversarial:
             self.adv_classifier = AdversarialClassifier(
                 input_dim=latent_dim,
@@ -125,6 +127,15 @@ class EmotionDisentangleModule(pl.LightningModule):
             return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
         else:
             return self.adv_loss_weight
+
+    def _scheduler_t_max(self) -> int:
+        max_epochs = self.trainer.max_epochs
+        return max(max_epochs if max_epochs is not None else 1, 1)
+
+    def _get_adv_classifier(self) -> AdversarialClassifier:
+        if self.adv_classifier is None:
+            raise RuntimeError("Adversarial classifier is disabled for this module.")
+        return self.adv_classifier
 
     def _freeze(self, module: torch.nn.Module):
         module.eval()
@@ -192,6 +203,10 @@ class EmotionDisentangleModule(pl.LightningModule):
         
             # Adversarial training with manual optimization
             opt_ae, opt_adv = self.optimizers() # type: ignore
+            adv_classifier = self._get_adv_classifier()
+            adv_logits = None
+            targets = None
+            adv_loss = None
 
             with torch.no_grad():
                 _, z = self(x)
@@ -199,7 +214,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             # Adversary update steps
             for _ in range(self.adv_update_factor):
                 self.toggle_optimizer(opt_adv)
-                adv_logits = self.adv_classifier(z, emotion_embs, lengths) # type: ignore
+                adv_logits = adv_classifier(z, emotion_embs, lengths)
                 targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
                 adv_loss = F.cross_entropy(adv_logits, targets) 
                 
@@ -210,25 +225,28 @@ class EmotionDisentangleModule(pl.LightningModule):
                 self.manual_backward(adv_loss)
                 
                 # Compute and log gradient norm
-                grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
+                grad_norm_adv = self._compute_grad_norm(adv_classifier.parameters())
                 self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
                 
                 # Apply gradient clipping
-                self._clip_gradients(self.adv_classifier.parameters())
+                self._clip_gradients(adv_classifier.parameters())
                 
                 opt_adv.step()
                 opt_adv.zero_grad(set_to_none=True)
                 self.untoggle_optimizer(opt_adv)
+
+            if adv_logits is None or targets is None or adv_loss is None:
+                raise RuntimeError("adv_update_factor must be >= 1 when adversarial training is enabled.")
             
-            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float()) # type: ignore
+            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
 
             # AE update step
-            self._freeze(self.adv_classifier) # Freeze adversary during AE update
+            self._freeze(adv_classifier) # Freeze adversary during AE update
             self.toggle_optimizer(opt_ae)
             x_hat, z = self(x)
             adv_loss_weight = self._compute_adv_loss_weight()
             
-            fool_logits = self.adv_classifier(grl(z, adv_loss_weight), emotion_embs, lengths) # type: ignore
+            fool_logits = adv_classifier(grl(z, adv_loss_weight), emotion_embs, lengths)
             fool_targets = torch.arange(fool_logits.size(0), device=fool_logits.device)
 
             recon_loss = F.mse_loss(x_hat, x)
@@ -253,7 +271,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             
             opt_ae.step()
             self.untoggle_optimizer(opt_ae)
-            self._unfreeze(self.adv_classifier)
+            self._unfreeze(adv_classifier)
 
             self.log_dict(
                 {
@@ -286,9 +304,10 @@ class EmotionDisentangleModule(pl.LightningModule):
         )
 
         if self.use_adversarial:
-            adv_logits = self.adv_classifier(z, emotion_embs, lengths) # type: ignore
+            adv_classifier = self._get_adv_classifier()
+            adv_logits = adv_classifier(z, emotion_embs, lengths)
             targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
-            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float()) # type: ignore
+            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
             self.log(
                 "val_adv_acc",
                 adv_acc.detach(),
@@ -311,7 +330,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 # Apply gradient clipping for AE-only training (automatic optimization)
                 self.clip_gradients(optimizer, gradient_clip_val=self.gradient_clip_val, gradient_clip_algorithm="norm")
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> Any:
         
         opt_ae = torch.optim.Adam(
             self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
@@ -321,7 +340,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             # AE-only training: return single optimizer and scheduler
             if self.lr_scheduling:
                 sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_ae, T_max=max(self.trainer.max_epochs, 1)
+                    opt_ae, T_max=self._scheduler_t_max()
                 )
                 return {"optimizer": opt_ae, "lr_scheduler": sched_ae}
             else:
@@ -329,17 +348,18 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         else:
             # Adversarial training: return both optimizers and schedulers
-            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
+            adv_classifier = self._get_adv_classifier()
+            opt_adv = torch.optim.Adam(adv_classifier.parameters(), lr=self.learning_rate)
             
             # Store optimizer names for logging
             self.optimizer_names = ["autoencoder", "adversarial"]
             
             if self.lr_scheduling:
                 sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_ae, T_max=max(self.trainer.max_epochs, 1)
+                    opt_ae, T_max=self._scheduler_t_max()
                 )
                 sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_adv, T_max=max(self.trainer.max_epochs, 1)
+                    opt_adv, T_max=self._scheduler_t_max()
                 )
                 return [
                     {"optimizer": opt_ae, "lr_scheduler": sched_ae},
@@ -357,11 +377,17 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         if isinstance(schedulers, (list, tuple)):
             for i, scheduler in enumerate(schedulers):
-                scheduler.step()
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(0.0)
+                else:
+                    scheduler.step()
                 # Use stored optimizer names for logging
                 name = self.optimizer_names[i] if hasattr(self, 'optimizer_names') and i < len(self.optimizer_names) else f"optimizer_{i}"
                 self.log(f"lr_{name}", scheduler.get_last_lr()[0], on_epoch=True, sync_dist=True)
         elif schedulers is not None:
-            schedulers.step()
+            if isinstance(schedulers, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                schedulers.step(0.0)
+            else:
+                schedulers.step()
             self.log("lr_scheduler", schedulers.get_last_lr()[0], on_epoch=True, sync_dist=True)
         
