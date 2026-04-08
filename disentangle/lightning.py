@@ -1,11 +1,11 @@
 from math import sin
 from typing import Any, Optional
 
-import pytorch_lightning as pl
+import pytorch_lightning as pl # pyright: ignore[reportMissingImports]
 import torch
 import torch.nn.functional as F
 from torch.autograd import Function
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy # pyright: ignore[reportMissingImports]
 
 from disentangle.models import AdversarialClassifier, DisentanglementAE
 
