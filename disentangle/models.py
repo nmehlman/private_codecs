@@ -2,6 +2,7 @@ import sys
 from pytorch_tcn.tcn import TCN 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class DisentanglementAE(nn.Module):
     
@@ -10,29 +11,19 @@ class DisentanglementAE(nn.Module):
                  latent_dim: int, 
                  enc_channels: list,
                  dec_channels: list, 
-                 conditioning_dim: int, 
-                 conditioning_dropout: float = 0.0, 
                  **kwargs):
         
         super(DisentanglementAE, self).__init__()
         
         self.encoder = TCN(codec_dim, enc_channels + [latent_dim], causal=False, **kwargs)
-        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], conditioning_dim=conditioning_dim, causal=False, disable_final_activation=True, **kwargs)
+        self.decoder = TCN(latent_dim, dec_channels + [codec_dim], causal=False, disable_final_activation=True, **kwargs)
 
-        self.conditioning_dropout = conditioning_dropout
-
-    def forward(self, codec_output: torch.Tensor, emotion_embed: torch.Tensor) -> tuple:
+    def forward(self, codec_output: torch.Tensor) -> tuple:
         
         z = self.encoder(codec_output)
         
-        if self.training and self.conditioning_dropout > 0: # Randomly shuffle conditioning embeddings
-            b = emotion_embed.size(0)
-            do_swap = (torch.rand(b, device=emotion_embed.device) < self.conditioning_dropout)
-            perm = torch.randperm(b, device=emotion_embed.device)
-            swapped = emotion_embed[perm]
-            emotion_embed = torch.where(do_swap[:, None], swapped, emotion_embed)
-        
-        x_hat = self.decoder(z, conditioning=emotion_embed)
+        x_hat = self.decoder(z)
+
         return x_hat, z
     
 class AttentionPooling(torch.nn.Module):
@@ -49,7 +40,7 @@ class AttentionPooling(torch.nn.Module):
         return weighted_sum
 
 class AdversarialClassifier(nn.Module):
-    def __init__(self, input_dim: int, num_classes: int, channels: list = [64, 64, 64], **kwargs):
+    def __init__(self, input_dim: int, emotion_dim: int, channels: list = [64, 64, 64], tau: float = 0.07, **kwargs):
         
         super(AdversarialClassifier, self).__init__()
         
@@ -65,23 +56,28 @@ class AdversarialClassifier(nn.Module):
             **kwargs
         )
 
+        self.tau = tau
         self.pooling = AttentionPooling(input_dim=channels[-1])
-        self.fc = torch.nn.Linear(channels[-1], num_classes)
+        self.proj = nn.Linear(channels[-1], emotion_dim, bias=False)
 
-    def forward(self, x: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+    def forward(self, z: torch.Tensor, e: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         
-        T = x.size(2)
-        mask = torch.arange(T, device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
+        T = z.size(2)
+        mask = torch.arange(T, device=z.device).unsqueeze(0) < lengths.unsqueeze(1) # Mask out padding positions
         assert torch.isnan(mask).sum() == 0
 
-        encoded = self.encoder(x)
-        assert encoded.dim() == 3
-        assert torch.isnan(encoded).sum() == 0
+        z_encoded = self.encoder(z)
+        assert z_encoded.dim() == 3
+        assert torch.isnan(z_encoded).sum() == 0
 
-        pooled = self.pooling(encoded, mask)
-        assert torch.isnan(pooled).sum() == 0
+        c = self.pooling(z_encoded, mask)
+        assert torch.isnan(c).sum() == 0
 
-        logits = self.fc(pooled)
+        EC = self.proj(c) # B x emotion_dim
+
+        EC_norm = F.normalize(EC, p=2, dim=1)
+        e_norm = F.normalize(e, p=2, dim=1)
+        logits = (EC_norm @ e_norm.T) / self.tau # B x B
 
         return logits
 
@@ -97,14 +93,12 @@ if __name__ == "__main__":
     num_channels_enc = [128]
     num_channels_dec = [128]
 
-    ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec, conditioning_dim)
+    ae = DisentanglementAE(codec_dim, latent_dim, num_channels_enc, num_channels_dec)
 
     x = torch.randn(batch_size, codec_dim, seq_len)
-    cond = torch.randn(batch_size, conditioning_dim) 
 
-    x_hat, z = ae(x, cond)
+    x_hat, z = ae(x)
 
     print(f"Input shape: {x.shape}")
-    print(f"Conditioning shape: {cond.shape}")
     print(f"Latent shape: {z.shape}")
     print(f"Output shape: {x_hat.shape}")
