@@ -50,7 +50,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
-        tau: float = 0.07
+        tau: float = 0.07,
+        ae_chekpoint_path: Optional[str] = None,    
     ):
         super().__init__()
 
@@ -61,6 +62,14 @@ class EmotionDisentangleModule(pl.LightningModule):
             dec_channels=dec_channels,
             **ae_kwargs,
         )
+
+        if ae_chekpoint_path is not None:
+            checkpoint = torch.load(ae_chekpoint_path, map_location="cpu")
+            if "state_dict" in checkpoint:
+                state_dict = checkpoint["state_dict"]
+            else:
+                state_dict = checkpoint
+            self.ae.load_state_dict(state_dict, strict=True)
 
         self.use_adversarial = use_adversarial
         self.adv_classifier: Optional[AdversarialClassifier]
