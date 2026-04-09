@@ -21,7 +21,7 @@ class GradReverse(Function):
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx, grad_outputs):
+    def backward(ctx, grad_outputs): # type: ignore
         return -ctx.lambd * grad_outputs, None
 
 
