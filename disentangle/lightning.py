@@ -42,6 +42,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         adversarial_kwargs: dict = {},
         adv_loss_weight: float = 1.0,
         learning_rate: float = 1e-3,
+        adv_learning_rate: Optional[float] = None,
         adv_annealing_steps: int = 0,
         adv_update_factor: int = 1,
         weight_decay: float = 0,
@@ -50,7 +51,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
-        tau: float = 0.07,
+        tau: float = 0.07
     ):
         super().__init__()
 
@@ -76,6 +77,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.adv_classifier = None
 
         self.learning_rate = learning_rate
+        self.adv_learning_rate = adv_learning_rate
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
@@ -199,9 +201,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             
             return total_loss
         
-        else:
-        
-            # Adversarial training with manual optimization
+        else: # Adversarial training with manual optimization
             opt_ae, opt_adv = self.optimizers() # type: ignore
             adv_classifier = self._get_adv_classifier()
             adv_logits = None
@@ -349,7 +349,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         else:
             # Adversarial training: return both optimizers and schedulers
             adv_classifier = self._get_adv_classifier()
-            opt_adv = torch.optim.Adam(adv_classifier.parameters(), lr=self.learning_rate)
+            opt_adv = torch.optim.Adam(adv_classifier.parameters(), lr=self.adv_learning_rate if self.adv_learning_rate else self.learning_rate)
             
             # Store optimizer names for logging
             self.optimizer_names = ["autoencoder", "adversarial"]
