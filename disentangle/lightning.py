@@ -79,7 +79,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_learning_rate = adv_learning_rate
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
-        self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
@@ -172,149 +171,72 @@ class EmotionDisentangleModule(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         
+        self._freeze(self.ae)
+
         x, emotion_embs, _, lengths = batch
         B = x.size(0) # batch size
         
-        if not self.use_adversarial:
-            
-            # AE-only training with automatic optimization
-            x_hat, z = self(x)
-            recon_loss = F.mse_loss(x_hat, x)
-            
-            total_loss = recon_loss  
+        _, opt_adv = self.optimizers() # type: ignore
+        adv_classifier = self._get_adv_classifier()
+        adv_logits = None
+        targets = None
+        adv_loss = None
 
-            # Check for NaN
-            self._check_nan(recon_loss, "train_recon_loss")
-            self._check_nan(total_loss, "train_total_loss")
-            
-            self.log_dict(
-                {
-                    "train_recon_loss": recon_loss.detach(),
-                    "train_total_loss": total_loss.detach(),
-                },
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                sync_dist=True,
-            )
-            
-            return total_loss
+        with torch.no_grad():
+            _, z = self(x)
+
+        self.toggle_optimizer(opt_adv)
+        adv_logits = adv_classifier(z, emotion_embs, lengths)
+        targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
+        adv_loss = F.cross_entropy(adv_logits, targets) 
         
-        else: # Adversarial training with manual optimization
-            opt_ae, opt_adv = self.optimizers() # type: ignore
-            adv_classifier = self._get_adv_classifier()
-            adv_logits = None
-            targets = None
-            adv_loss = None
+        # Check for NaN
+        self._check_nan(adv_loss, "train_adv_loss")
+        
+        opt_adv.zero_grad()
+        self.manual_backward(adv_loss)
+        
+        # Compute and log gradient norm
+        grad_norm_adv = self._compute_grad_norm(adv_classifier.parameters())
+        self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
+        
+        # Apply gradient clipping
+        self._clip_gradients(adv_classifier.parameters())
+        
+        opt_adv.step()
+        opt_adv.zero_grad(set_to_none=True)
+        self.untoggle_optimizer(opt_adv)
 
-            with torch.no_grad():
-                _, z = self(x)
+        adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
+    
+        self.log_dict(
+            {
+                "train_adv_loss": adv_loss.detach(),
+                "train_adv_acc": adv_acc.detach(),
+            },
+            prog_bar=False,
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
+        )
 
-            # Adversary update steps
-            for _ in range(self.adv_update_factor):
-                self.toggle_optimizer(opt_adv)
-                adv_logits = adv_classifier(z, emotion_embs, lengths)
-                targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
-                adv_loss = F.cross_entropy(adv_logits, targets) 
-                
-                # Check for NaN
-                self._check_nan(adv_loss, "train_adv_loss")
-                
-                opt_adv.zero_grad()
-                self.manual_backward(adv_loss)
-                
-                # Compute and log gradient norm
-                grad_norm_adv = self._compute_grad_norm(adv_classifier.parameters())
-                self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
-                
-                # Apply gradient clipping
-                self._clip_gradients(adv_classifier.parameters())
-                
-                opt_adv.step()
-                opt_adv.zero_grad(set_to_none=True)
-                self.untoggle_optimizer(opt_adv)
-
-            if adv_logits is None or targets is None or adv_loss is None:
-                raise RuntimeError("adv_update_factor must be >= 1 when adversarial training is enabled.")
-            
-            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
-
-            # AE update step
-            self._freeze(adv_classifier) # Freeze adversary during AE update
-            self.toggle_optimizer(opt_ae)
-            x_hat, z = self(x)
-            adv_loss_weight = self._compute_adv_loss_weight()
-            
-            fool_logits = adv_classifier(grl(z, adv_loss_weight), emotion_embs, lengths)
-            fool_targets = torch.arange(fool_logits.size(0), device=fool_logits.device)
-
-            recon_loss = F.mse_loss(x_hat, x)
-            fool_loss = F.cross_entropy(fool_logits, fool_targets)
-
-            ae_loss = recon_loss + fool_loss
-            
-            # Check for NaN
-            self._check_nan(recon_loss, "train_recon_loss")
-            self._check_nan(fool_loss, "train_fool_loss")
-            self._check_nan(ae_loss, "train_ae_loss")
-
-            opt_ae.zero_grad()
-            self.manual_backward(ae_loss)
-            
-            # Compute and log gradient norm
-            grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
-            self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
-            
-            # Apply gradient clipping
-            self._clip_gradients(self.ae.parameters())
-            
-            opt_ae.step()
-            self.untoggle_optimizer(opt_ae)
-            self._unfreeze(adv_classifier)
-
-            self.log_dict(
-                {
-                    "train_recon_loss": recon_loss.detach(),
-                    "train_adv_loss": adv_loss.detach(),
-                    "train_ae_loss": ae_loss.detach(),
-                    "train_adv_acc": adv_acc.detach(),
-                    "train_fool_loss": fool_loss.detach(),
-                    "train_total_loss": ae_loss.detach(),
-                },
-                prog_bar=False,
-                on_step=True,
-                on_epoch=False,
-                sync_dist=True,
-            )
-
-            return ae_loss.detach()
+        return adv_loss.detach()
 
     def validation_step(self, batch, batch_idx):
         x, emotion_embs, _, lengths = batch
-        x_hat, z = self(x)
-        recon_loss = F.mse_loss(x_hat, x)
+        _, z = self(x)
+        adv_classifier = self._get_adv_classifier()
+        adv_logits = adv_classifier(z, emotion_embs, lengths)
+        targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
+        adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
         self.log(
-            "val_recon_loss",
-            recon_loss.detach(),
+            "val_adv_acc",
+            adv_acc.detach(),
             prog_bar=True,
             on_step=False,
             on_epoch=True,
             sync_dist=True,
         )
-
-        if self.use_adversarial:
-            adv_classifier = self._get_adv_classifier()
-            adv_logits = adv_classifier(z, emotion_embs, lengths)
-            targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
-            adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
-            self.log(
-                "val_adv_acc",
-                adv_acc.detach(),
-                prog_bar=True,
-                on_step=False,
-                on_epoch=True,
-                sync_dist=True,
-            )
 
     def on_before_optimizer_step(self, optimizer):
             """Hook called before optimizer step - used for gradient logging in automatic optimization mode."""
