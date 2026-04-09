@@ -71,7 +71,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 input_dim=latent_dim,
                 emotion_dim=emotion_dim,
                 channels=adversarial_channels,
-                tau_cl=tau_cl,
+                tau=tau_cl,
                 **adversarial_kwargs,
             )
         else:
