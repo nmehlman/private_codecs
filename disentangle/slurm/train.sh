@@ -15,6 +15,6 @@ module purge
 source /project2/shrikann_35/nmehlman/conda/etc/profile.d/conda.sh
 conda activate priv-codec
 
-CONFIG="configs/train/train_expresso_encodec.yaml"
+CONFIG="$1"
 
-srun python train.py --config "$CONFIG" 
+srun python train.py --config "$CONFIG"
