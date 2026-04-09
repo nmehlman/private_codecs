@@ -38,6 +38,7 @@ lightning:
   use_adversarial: true
   lr_scheduling: true
   gradient_clip_val: 10.0
+  soft_loss_weight: 0.5
 
 
 # Training options:
