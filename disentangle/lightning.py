@@ -50,7 +50,9 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
-        tau: float = 0.07
+        tau_cl: float = 0.07,
+        tau_st: float = 0.07,
+        soft_loss_weight: float = 0.0,
     ):
         super().__init__()
 
@@ -69,7 +71,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 input_dim=latent_dim,
                 emotion_dim=emotion_dim,
                 channels=adversarial_channels,
-                tau=tau,
+                tau_cl=tau_cl,
                 **adversarial_kwargs,
             )
         else:
@@ -77,6 +79,7 @@ class EmotionDisentangleModule(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.adv_learning_rate = adv_learning_rate
+        self.tau_st = tau_st
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
@@ -86,6 +89,9 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
+
+        assert 0.0 <= soft_loss_weight <= 1.0, "soft_loss_weight must be between 0 and 1"
+        self.soft_loss_weight = soft_loss_weight
 
         if self.normalize_input:
             assert self.dataset_stats, "Dataset stats must be provided for normalization."
@@ -170,6 +176,20 @@ class EmotionDisentangleModule(pl.LightningModule):
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
         
+    def compute_contrastive_loss(self, adv_logits, emotion_embs):
+        
+        targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
+        ce_loss = F.cross_entropy(adv_logits, targets)
+        
+        if self.soft_loss_weight > 0:
+            emotion_embs_norm = F.normalize(emotion_embs, p=2, dim=1)
+            soft_targets = (torch.inner(emotion_embs_norm, emotion_embs_norm) / self.tau_st).softmax(dim=1)
+            log_probs = F.log_softmax(adv_logits, dim=1)
+            soft_loss = F.kl_div(log_probs, soft_targets, reduction='batchmean')
+            return (1 - self.soft_loss_weight) * ce_loss + self.soft_loss_weight * soft_loss
+        else:
+            return ce_loss
+
     def training_step(self, batch, batch_idx):
         
         x, emotion_embs, _, lengths = batch
@@ -204,7 +224,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             opt_ae, opt_adv = self.optimizers() # type: ignore
             adv_classifier = self._get_adv_classifier()
             adv_logits = None
-            targets = None
+            targets = torch.arange(B, device=x.device)
             adv_loss = None
 
             with torch.no_grad():
@@ -214,8 +234,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             for _ in range(self.adv_update_factor):
                 self.toggle_optimizer(opt_adv)
                 adv_logits = adv_classifier(z, emotion_embs, lengths)
-                targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
-                adv_loss = F.cross_entropy(adv_logits, targets) 
+                adv_loss = self.compute_contrastive_loss(adv_logits, emotion_embs) 
                 
                 # Check for NaN
                 self._check_nan(adv_loss, "train_adv_loss")
@@ -246,10 +265,9 @@ class EmotionDisentangleModule(pl.LightningModule):
             adv_loss_weight = self._compute_adv_loss_weight()
             
             fool_logits = adv_classifier(grl(z, adv_loss_weight), emotion_embs, lengths)
-            fool_targets = torch.arange(fool_logits.size(0), device=fool_logits.device)
 
             recon_loss = F.mse_loss(x_hat, x)
-            fool_loss = F.cross_entropy(fool_logits, fool_targets)
+            fool_loss = self.compute_contrastive_loss(fool_logits, emotion_embs)
 
             ae_loss = recon_loss + fool_loss
             
