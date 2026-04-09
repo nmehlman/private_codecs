@@ -5,7 +5,6 @@ import pytorch_lightning as pl # pyright: ignore[reportMissingImports]
 import torch
 import torch.nn.functional as F
 from torch.autograd import Function
-from torchmetrics import Accuracy # pyright: ignore[reportMissingImports]
 
 from disentangle.models import AdversarialClassifier, DisentanglementAE
 
