@@ -233,7 +233,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 # Apply gradient clipping for AE-only training (automatic optimization)
                 self.clip_gradients(optimizer, gradient_clip_val=self.gradient_clip_val, gradient_clip_algorithm="norm")
 
-    def load_state_dict(self, state_dict, strict=True):
+    def load_adv_state_dict(self, state_dict, strict=True):
         """Load only AE weights from checkpoint and ignore adversarial weights."""
         ae_prefixes = ("ae.", "model.ae.", "module.ae.")
         ae_state_dict = {}

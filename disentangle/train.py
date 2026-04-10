@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if config.get("ckpt_path"):
         print(f"Loading AE checkpoint from {config['ckpt_path']}...")
         checkpoint = torch.load(config["ckpt_path"], map_location="cpu")
-        pl_model.load_state_dict(checkpoint["state_dict"])
+        pl_model.load_adv_state_dict(checkpoint["state_dict"])
 
     # Create logger (logs are saved to /save_dir/name/version/):
     logger = TensorBoardLogger(**config["tensorboard"])
