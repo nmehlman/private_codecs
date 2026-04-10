@@ -243,41 +243,19 @@ class EmotionDisentangleModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Any:
         
-        opt_ae = torch.optim.Adam(
-            self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
-        )
+        adv_classifier = self._get_adv_classifier()
+        opt_adv = torch.optim.Adam(adv_classifier.parameters(), lr=self.adv_learning_rate if self.adv_learning_rate else self.learning_rate)
         
-        if not self.use_adversarial:
-            # AE-only training: return single optimizer and scheduler
-            if self.lr_scheduling:
-                sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_ae, T_max=self._scheduler_t_max()
-                )
-                return {"optimizer": opt_ae, "lr_scheduler": sched_ae}
-            else:
-                return {"optimizer": opt_ae}
-        
+        if self.lr_scheduling:
+            
+            sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
+                opt_adv, T_max=self._scheduler_t_max()
+            )
+            return [
+                {"optimizer": opt_adv, "lr_scheduler": sched_adv}
+            ]
         else:
-            # Adversarial training: return both optimizers and schedulers
-            adv_classifier = self._get_adv_classifier()
-            opt_adv = torch.optim.Adam(adv_classifier.parameters(), lr=self.adv_learning_rate if self.adv_learning_rate else self.learning_rate)
-            
-            # Store optimizer names for logging
-            self.optimizer_names = ["autoencoder", "adversarial"]
-            
-            if self.lr_scheduling:
-                sched_ae = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_ae, T_max=self._scheduler_t_max()
-                )
-                sched_adv = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    opt_adv, T_max=self._scheduler_t_max()
-                )
-                return [
-                    {"optimizer": opt_ae, "lr_scheduler": sched_ae},
-                    {"optimizer": opt_adv, "lr_scheduler": sched_adv}
-                ]
-            else:
-                return [opt_ae, opt_adv]
+            return opt_adv
 
     def on_train_epoch_end(self):
         if not self.use_adversarial:
