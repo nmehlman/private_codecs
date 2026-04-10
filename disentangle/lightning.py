@@ -191,8 +191,8 @@ class EmotionDisentangleModule(pl.LightningModule):
     
         self.log_dict(
             {
-                "train_adv_loss": adv_loss.detach(),
-                "train_adv_acc": adv_acc.detach(),
+                "train_adv_loss": adv_loss,
+                "train_adv_acc": adv_acc,
             },
             prog_bar=False,
             on_step=True,
@@ -200,7 +200,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             sync_dist=True,
         )
 
-        return adv_loss.detach()
+        return adv_loss
 
     def validation_step(self, batch, batch_idx):
         x, emotion_embs, _, lengths = batch
