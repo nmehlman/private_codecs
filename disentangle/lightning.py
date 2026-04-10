@@ -61,6 +61,10 @@ class EmotionDisentangleModule(pl.LightningModule):
             **ae_kwargs,
         )
 
+
+        for param in self.ae.parameters():
+            param.requires_grad_(False)
+
         self.use_adversarial = use_adversarial
         self.adv_classifier: Optional[AdversarialClassifier]
         if self.use_adversarial:
