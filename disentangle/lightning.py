@@ -50,9 +50,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
-        tau: float = 0.07,
-        ae_chekpoint_path: Optional[str] = None,    
-    ):
+        tau: float = 0.07,    ):
         super().__init__()
 
         self.ae = DisentanglementAE(
@@ -62,14 +60,6 @@ class EmotionDisentangleModule(pl.LightningModule):
             dec_channels=dec_channels,
             **ae_kwargs,
         )
-
-        if ae_chekpoint_path is not None:
-            checkpoint = torch.load(ae_chekpoint_path, map_location="cpu")
-            if "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-            else:
-                state_dict = checkpoint
-            self.ae.load_state_dict(state_dict, strict=True)
 
         self.use_adversarial = use_adversarial
         self.adv_classifier: Optional[AdversarialClassifier]
@@ -259,6 +249,14 @@ class EmotionDisentangleModule(pl.LightningModule):
             if not self.use_adversarial and self.gradient_clip_val > 0:
                 # Apply gradient clipping for AE-only training (automatic optimization)
                 self.clip_gradients(optimizer, gradient_clip_val=self.gradient_clip_val, gradient_clip_algorithm="norm")
+
+    def load_state_dict(self, state_dict, strict=True):
+        """Load only autoencoder weights from checkpoint, ignoring adversarial classifier."""
+        # Filter state_dict to only include autoencoder keys
+        ae_state_dict = {k: v for k, v in state_dict.items() if k.startswith("ae.")}
+        
+        # Load only the filtered state dict
+        return super().load_state_dict(ae_state_dict, strict=False)
 
     def configure_optimizers(self) -> Any:
         
