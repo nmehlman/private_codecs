@@ -195,6 +195,7 @@ if __name__ == "__main__":
     
     # Load checkpoint if specified
     if config.get("ckpt_path"):
+        print(f"Loading AE checkpoint from {config['ckpt_path']}...")
         checkpoint = torch.load(config["ckpt_path"], map_location="cpu")
         pl_model.load_state_dict(checkpoint["state_dict"])
 

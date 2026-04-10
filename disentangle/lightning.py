@@ -177,9 +177,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         _, opt_adv = self.optimizers() # type: ignore
         adv_classifier = self._get_adv_classifier()
-        adv_logits = None
-        targets = None
-        adv_loss = None
 
         with torch.no_grad():
             _, z = self(x)
@@ -191,20 +188,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         
         # Check for NaN
         self._check_nan(adv_loss, "train_adv_loss")
-        
-        opt_adv.zero_grad()
-        self.manual_backward(adv_loss)
-        
-        # Compute and log gradient norm
-        grad_norm_adv = self._compute_grad_norm(adv_classifier.parameters())
-        self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
-        
-        # Apply gradient clipping
-        self._clip_gradients(adv_classifier.parameters())
-        
-        opt_adv.step()
-        opt_adv.zero_grad(set_to_none=True)
-        self.untoggle_optimizer(opt_adv)
 
         adv_acc = torch.mean((adv_logits.argmax(dim=1) == targets).float())
     
