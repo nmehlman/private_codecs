@@ -175,13 +175,11 @@ class EmotionDisentangleModule(pl.LightningModule):
         x, emotion_embs, _, lengths = batch
         B = x.size(0) # batch size
         
-        _, opt_adv = self.optimizers() # type: ignore
         adv_classifier = self._get_adv_classifier()
 
         with torch.no_grad():
             _, z = self(x)
 
-        self.toggle_optimizer(opt_adv)
         adv_logits = adv_classifier(z, emotion_embs, lengths)
         targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
         adv_loss = F.cross_entropy(adv_logits, targets) 
