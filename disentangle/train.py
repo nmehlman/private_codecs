@@ -208,19 +208,10 @@ if __name__ == "__main__":
     with open(config_save_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
-    callbacks = []
-    callbacks.append(EpochInferenceCallback(
-        codec_name=codec_name,
-        emotion_model_name=config["dataset"]["emotion_model"],
-        device="cuda", 
-        dataset_sr=config.get("dataset_sr", 16000)
-    ))
-
     # Make trainer
     trainer = Trainer(
         logger=logger,
         strategy=DDPStrategy(find_unused_parameters=True),
-        callbacks=callbacks,
         **config["trainer"],
     )
 
