@@ -234,12 +234,22 @@ class EmotionDisentangleModule(pl.LightningModule):
                 self.clip_gradients(optimizer, gradient_clip_val=self.gradient_clip_val, gradient_clip_algorithm="norm")
 
     def load_state_dict(self, state_dict, strict=True):
-        """Load only autoencoder weights from checkpoint, ignoring adversarial classifier."""
-        # Filter state_dict to only include autoencoder keys
-        ae_state_dict = {k: v for k, v in state_dict.items() if k.startswith("ae.")}
-        
-        # Load only the filtered state dict
-        return super().load_state_dict(ae_state_dict, strict=False)
+        """Load only AE weights from checkpoint and ignore adversarial weights."""
+        ae_prefixes = ("ae.", "model.ae.", "module.ae.")
+        ae_state_dict = {}
+
+        for key, value in state_dict.items():
+            matched_prefix = next((p for p in ae_prefixes if key.startswith(p)), None)
+            if matched_prefix is None:
+                continue
+            ae_key = key[len(matched_prefix):]
+            ae_state_dict[ae_key] = value
+
+        if not ae_state_dict:
+            raise RuntimeError("No autoencoder weights found in provided state_dict.")
+
+        # Load directly into the AE submodule so adversarial parameters are untouched.
+        return self.ae.load_state_dict(ae_state_dict, strict=strict)
 
     def configure_optimizers(self) -> Any:
         
