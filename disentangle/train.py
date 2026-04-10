@@ -228,5 +228,4 @@ if __name__ == "__main__":
             pl_model,
             train_dataloaders = dataloaders["train"],
             val_dataloaders = dataloaders["val"],
-            ckpt_path = config["ckpt_path"]
         )
