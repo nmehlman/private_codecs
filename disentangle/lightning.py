@@ -98,15 +98,14 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
     def forward(self, x):
-        with torch.no_grad():
-            if self.normalize_input:
-                x = self._normalize(x)
+        if self.normalize_input:
+            x = self._normalize(x)
 
-            x_hat, z = self.ae(x)
-            if self.normalize_input:
-                x_hat = self._denormalize(x_hat)
+        x_hat, z = self.ae(x)
+        if self.normalize_input:
+            x_hat = self._denormalize(x_hat)
 
-            return x_hat, z
+        return x_hat, z
 
     def _normalize(self, x):
         mean = self.ds_mean  # (1, codec_dim, 1)
@@ -176,9 +175,16 @@ class EmotionDisentangleModule(pl.LightningModule):
         B = x.size(0) # batch size
         
         adv_classifier = self._get_adv_classifier()
+        self._unfreeze(adv_classifier)
 
+        if not any(p.requires_grad for p in adv_classifier.parameters()):
+            raise RuntimeError("Adversarial classifier parameters are frozen; cannot compute gradients.")
+
+        # Keep AE fully out of the autograd graph; only train the adversarial classifier.
         with torch.no_grad():
-            _, z = self(x)
+            if self.normalize_input:
+                x = self._normalize(x)
+            z = self.ae.encoder(x)
 
         adv_logits = adv_classifier(z, emotion_embs, lengths)
         targets = torch.arange(adv_logits.size(0), device=adv_logits.device)
