@@ -61,10 +61,6 @@ class EmotionDisentangleModule(pl.LightningModule):
             **ae_kwargs,
         )
 
-
-        for param in self.ae.parameters():
-            param.requires_grad_(False)
-
         self.use_adversarial = use_adversarial
         self.adv_classifier: Optional[AdversarialClassifier]
         if self.use_adversarial:
@@ -102,15 +98,15 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
     def forward(self, x):
-        
-        if self.normalize_input:
-            x = self._normalize(x)
+        with torch.no_grad():
+            if self.normalize_input:
+                x = self._normalize(x)
 
-        x_hat, z = self.ae(x)
-        if self.normalize_input:
-            x_hat = self._denormalize(x_hat)
+            x_hat, z = self.ae(x)
+            if self.normalize_input:
+                x_hat = self._denormalize(x_hat)
 
-        return x_hat, z
+            return x_hat, z
 
     def _normalize(self, x):
         mean = self.ds_mean  # (1, codec_dim, 1)
