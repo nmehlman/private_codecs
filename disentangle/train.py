@@ -187,11 +187,30 @@ if __name__ == "__main__":
     # Load dataset stats for normalization
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
 
+    lightning_cfg = dict(config["lightning"])
+    ae_init_ckpt_path = lightning_cfg.pop("ae_init_ckpt_path", None)
+    ae_init_strict = lightning_cfg.pop("ae_init_strict", True)
+
     # Create Lightning module
     pl_model = EmotionDisentangleModule(
-        **config["lightning"],
+        **lightning_cfg,
         dataset_stats=stats
     )
+
+    # Optionally initialize only AE weights from a full Lightning checkpoint.
+    if ae_init_ckpt_path:
+        load_result = pl_model.load_autoencoder_from_lightning_checkpoint(
+            checkpoint_path=ae_init_ckpt_path,
+            strict=bool(ae_init_strict),
+            map_location="cpu",
+        )
+        print(f"Loaded autoencoder weights from checkpoint: {ae_init_ckpt_path}")
+        if load_result["missing_keys"] or load_result["unexpected_keys"]:
+            print(
+                "AE checkpoint load details - "
+                f"missing_keys={load_result['missing_keys']}, "
+                f"unexpected_keys={load_result['unexpected_keys']}"
+            )
 
     # Create logger (logs are saved to /save_dir/name/version/):
     logger = TensorBoardLogger(**config["tensorboard"])

@@ -39,6 +39,8 @@ lightning:
   lr_scheduling: true
   gradient_clip_val: 10.0
   soft_loss_weight: 0.5
+  ae_init_ckpt_path: null   # Optional: path to a full Lightning .ckpt to initialize only ae.* weights
+  ae_init_strict: true      # If false, allow partial AE weight loading
 
 
 # Training options:

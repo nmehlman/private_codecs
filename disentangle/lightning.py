@@ -135,6 +135,39 @@ class EmotionDisentangleModule(pl.LightningModule):
         else:
             return self.adv_loss_weight
 
+    def load_autoencoder_from_lightning_checkpoint(
+        self,
+        checkpoint_path: str,
+        strict: bool = True,
+        map_location: str = "cpu",
+    ):
+        """Load only autoencoder weights from a full Lightning checkpoint."""
+        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+        if not isinstance(checkpoint, dict):
+            raise ValueError(f"Invalid checkpoint format in {checkpoint_path}: expected dict.")
+
+        state_dict = checkpoint.get("state_dict")
+        if not isinstance(state_dict, dict):
+            raise KeyError(f"Missing 'state_dict' in checkpoint: {checkpoint_path}")
+
+        ae_prefix = "ae."
+        ae_state_dict = {
+            key[len(ae_prefix):]: value
+            for key, value in state_dict.items()
+            if key.startswith(ae_prefix)
+        }
+
+        if not ae_state_dict:
+            raise KeyError(
+                f"No autoencoder weights found under '{ae_prefix}' in checkpoint: {checkpoint_path}"
+            )
+
+        incompatible = self.ae.load_state_dict(ae_state_dict, strict=strict)
+        return {
+            "missing_keys": list(incompatible.missing_keys),
+            "unexpected_keys": list(incompatible.unexpected_keys),
+        }
+
     def _scheduler_t_max(self) -> int:
         max_epochs = self.trainer.max_epochs
         return max(max_epochs if max_epochs is not None else 1, 1)
