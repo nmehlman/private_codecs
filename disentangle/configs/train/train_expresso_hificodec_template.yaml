@@ -1,19 +1,19 @@
 
 
-# Basic training configuration for Expresso with Encodec features
+# Basic training configuration for Expresso with Hificodec features
 
 ---
 random_seed: 42
 ckpt_path: null
 gpus: "0"
 dataset_name: "expresso"
-codec_name: "encodec"
+codec_name: "hificodec"
 input_type: "quantized_embedding"
 
 # Dataset options:
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/"
-  codec: "encodec"
+  codec: "hificodec"
   emotion_model: "wavlm"
 
 # Dataloader options:
