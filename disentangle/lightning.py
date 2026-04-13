@@ -42,6 +42,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         adv_loss_weight: float = 1.0,
         learning_rate: float = 1e-3,
         adv_learning_rate: Optional[float] = None,
+        ae_warmup_steps: int = 0,
         adv_annealing_steps: int = 0,
         adv_update_factor: int = 1,
         weight_decay: float = 0,
@@ -84,6 +85,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
+        self.ae_warmup_steps = ae_warmup_steps
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
@@ -129,8 +131,10 @@ class EmotionDisentangleModule(pl.LightningModule):
 
     def _compute_adv_loss_weight(self):
         # Apply sine annealing for adversarial loss weight
-        if self.global_step < self.adv_annealing_steps:
-            frac = self.global_step / self.adv_annealing_steps
+        if self.global_step < self.ae_warmup_steps:
+            return 0.0  # No adversarial loss during AE warmup
+        elif self.global_step < self.adv_annealing_steps + self.ae_warmup_steps:
+            frac = (self.global_step - self.ae_warmup_steps) / self.adv_annealing_steps
             return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
         else:
             return self.adv_loss_weight
