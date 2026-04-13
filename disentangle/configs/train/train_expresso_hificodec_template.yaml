@@ -23,12 +23,12 @@ dataloader:
 
 # Model options:
 lightning:
-  codec_dim: 128
-  latent_dim: 64
-  enc_channels: [256, 128]
-  dec_channels: [256]
-  emotion_dim: 256
-  learning_rate: 0.0002
+  codec_dim: 512
+  latent_dim: 128
+  enc_channels: [256, 256]
+  dec_channels: [128, 128]
+  num_emotion_classes: 9
+  learning_rate: 0.002
   adv_learning_rate: 0.002
   weight_decay: 0
   adv_annealing_steps: 20000 
