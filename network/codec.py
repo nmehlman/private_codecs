@@ -92,8 +92,8 @@ class HifiCodec:
         if sr != self.sample_rate:
             audio = torchaudio.functional.resample(audio, orig_freq=sr, new_freq=self.sample_rate)
 
-        audio_codes = self.model.encode(audio).squeeze(1)
-        recon_audio = self.model(audio_codes).squeeze(1)
+        audio_codes = self.model.encode(audio).squeeze()
+        recon_audio = self.model(audio_codes).squeeze()
         
         return {"recon_audio": recon_audio.squeeze(), "audio_codes": audio_codes.squeeze()}
     
