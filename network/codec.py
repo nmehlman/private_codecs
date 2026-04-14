@@ -122,7 +122,7 @@ class HifiCodec:
     def decode(self, audio_codes: torch.Tensor):
         audio_codes = audio_codes.transpose(1,2)
         audio_codes = audio_codes.to(self.device)
-        recon_audio = self.model(audio_codes).squeeze(1)
+        recon_audio = self.model(audio_codes).squeeze()
         
         return recon_audio
 
