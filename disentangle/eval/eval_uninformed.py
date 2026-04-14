@@ -63,8 +63,6 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
     audio_private = torchaudio.functional.resample(
         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
-
-    print(audio_private.shape) # DEBUG
     
     audio_codec_only = torchaudio.functional.resample(
         audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
