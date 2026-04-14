@@ -1,5 +1,3 @@
-# TODO swap out prototypes from other cases
-
 from disentangle.lightning import EmotionDisentangleModule
 from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
 from network.models import VoxProfileEmotionModel
