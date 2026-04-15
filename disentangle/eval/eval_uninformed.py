@@ -45,19 +45,16 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
             audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
         )
     
-    # Encode audio with codec
     with torch.no_grad():
-        embedding_raw = codec.encode(audio, sr=dataset_sr)
+        embedding_raw = codec.encode(audio, sr=dataset_sr) # Encode audio with codec
         codes_raw, quantized_embedding_raw = codec.quantize(embedding_raw)
     
-    with torch.no_grad():
         embedding_private, _ = pl_model(quantized_embedding_raw)
         codes_private, embedding_private_quantized = codec.quantize(embedding_private)
-        audio_private = codec.decode(codes_private)
     
-    # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
-    with torch.no_grad():
+        # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
         audio_codec_only = codec.decode(codes_raw)
+        audio_private = codec.decode(codes_private)
     
     # Resample audios to dataset sr for emotion model
     audio_private = torchaudio.functional.resample(
@@ -123,7 +120,7 @@ def _resolve_checkpoint_path(log_dir, ckpt_name):
             f"No checkpoints matching 'epoch=<int>-step=<int>.ckpt' in {checkpoints_dir}"
         )
 
-    _, _, latest_filename = max(candidates, key=lambda item: (item[0], item[1]))
+    _, _, latest_filename = max(candidates, key=lambda item: (item[0], item[1])) # Sort by epoch, then step
     return os.path.join(checkpoints_dir, latest_filename)
 
 
