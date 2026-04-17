@@ -7,13 +7,13 @@ random_seed: 42
 ckpt_path: null
 gpus: "0"
 dataset_name: "expresso"
-codec_name: "encodec"
+codec_name: "hificodec"
 input_type: "quantized_embedding"
 
 # Dataset options:
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/expresso/codec_feats/"
-  codec: "encodec"
+  codec: "hificodec"
   emotion_model: "wavlm"
 
 # Dataloader options:
@@ -23,7 +23,7 @@ dataloader:
 
 # Model options:
 lightning:
-  codec_dim: 128
+  codec_dim: 512
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
@@ -31,13 +31,13 @@ lightning:
   learning_rate: 0.0002
   weight_decay: 0
   adv_annealing_steps: 20000 
-  ae_warmup_steps: 0
+  ae_warmup_steps: 10000
   adv_loss_weight: 0.5  
   adv_update_factor: 1      
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
-  gradient_clip_val: 10.0
+  gradient_clip_val: 100.0
 
 
 # Training options:

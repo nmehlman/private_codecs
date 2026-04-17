@@ -42,6 +42,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         adv_loss_weight: float = 1.0,
         learning_rate: float = 1e-3,
         adv_annealing_steps: int = 0,
+        ae_warmup_steps: int = 0,
         adv_update_factor: int = 1,
         weight_decay: float = 0,
         normalize_input: bool = True,
@@ -76,6 +77,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
+        self.ae_warmup_steps = max(0, ae_warmup_steps)
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
@@ -124,12 +126,18 @@ class EmotionDisentangleModule(pl.LightningModule):
         return x * std + mean
 
     def _compute_adv_loss_weight(self):
-        # Apply sine annealing for adversarial loss weight
-        if self.global_step < self.adv_annealing_steps:
-            frac = self.global_step / self.adv_annealing_steps
-            return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
-        else:
-            return self.adv_loss_weight
+        # Keep adversarial signal off while AE warmup is active.
+        if self.global_step < self.ae_warmup_steps:
+            return 0.0
+
+        # Apply sine annealing after warmup.
+        if self.adv_annealing_steps > 0:
+            anneal_step = self.global_step - self.ae_warmup_steps
+            if anneal_step < self.adv_annealing_steps:
+                frac = anneal_step / self.adv_annealing_steps
+                return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
+
+        return self.adv_loss_weight
 
     def _freeze(self, module: torch.nn.Module):
         module.eval()
@@ -195,7 +203,6 @@ class EmotionDisentangleModule(pl.LightningModule):
         
             # Adversarial training with manual optimization
             opt_ae, opt_adv = self.optimizers()
-
             with torch.no_grad():
                 _, z = self(x)
 
@@ -263,6 +270,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                     "train_adv_acc": adv_acc.detach(),
                     "train_fool_loss": fool_loss.detach(),
                     "train_total_loss": ae_loss.detach(),
+                    "train_adv_loss_weight": float(adv_loss_weight),
                 },
                 prog_bar=False,
                 on_step=True,
