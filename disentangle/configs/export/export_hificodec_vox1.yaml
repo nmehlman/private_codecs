@@ -1,0 +1,11 @@
+task: "categorical_emotion"
+codec_name: "hificodec"
+dataset_name: "vox1"
+
+dataset:
+  data_dir: "/project2/shrikann_35/DATA/Vox1"
+  audio_subdir: "vox1_dev_wav"
+
+device: "cuda"
+
+save_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/hificodec/dev"
