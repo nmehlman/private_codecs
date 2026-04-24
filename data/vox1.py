@@ -67,7 +67,7 @@ class Vox1Dataset(Dataset):
     def _load_from_metadata(self, metadata_path: str):
         """Load samples and gender labels from metadata CSV."""
         with open(metadata_path, "r", newline="") as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter='\t')
             
             for row in reader:
                 # Adjust column names as needed for your metadata format
