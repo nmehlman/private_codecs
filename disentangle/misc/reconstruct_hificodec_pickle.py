@@ -60,7 +60,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{args.pickle_path.stem}_recon.wav"
 
-    torchaudio.save(str(output_path), recon_audio.unsqueeze(0), sample_rate=HIFICODEC_SR)
+    torchaudio.save(str(output_path), recon_audio, sample_rate=HIFICODEC_SR)
     print(f"Saved reconstructed audio to: {output_path}")
 
 
