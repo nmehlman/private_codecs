@@ -77,6 +77,7 @@ class EmbeddingDataset(Dataset):
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
                     batch_size: int = 16,
+                    train_ratio: float = 0.9,
                     **dataloader_kwargs
                     ) -> Union[ DataLoader, Dict ]:
 
@@ -95,9 +96,12 @@ def get_dataloaders(
         if train_frac < 1.0
     """
 
-    train_dset = EmbeddingDataset(**dataset_kwargs, split="train")
-    val_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
+    full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
+    train_size = int(len(full_dset) * train_ratio)
+    val_size = len(full_dset) - train_size
+    train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+    
    
     train_loader = DataLoader(
                             dataset = train_dset,
