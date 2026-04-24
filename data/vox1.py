@@ -78,7 +78,8 @@ class Vox1Dataset(Dataset):
                     continue
 
                 # Find audio files for this speaker
-                speaker_dir = os.path.join(self.data_dir, self.audio_subdir, speaker_id)
+                speaker_dir = os.path.join(self.data_dir, self.audio_subdir, 'wav', speaker_id)
+                print(speaker_dir)
                 
                 if os.path.isdir(speaker_dir):
                     for fname in os.listdir(speaker_dir):
