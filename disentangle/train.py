@@ -13,8 +13,8 @@ import os
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
 
-from disentangle.lightning import EmotionDisentangleModule
-from network.models import VoxProfileEmotionModel
+from disentangle.lightning import SexDisentangleModule
+from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 
 import torchaudio
@@ -31,10 +31,9 @@ CODECS = {
 class EpochInferenceCallback(Callback):
     """Run inference on one batch after each train epoch and log summary metrics."""
 
-    def __init__(self, codec_name: str = "encodec", emotion_model_name: str = "whisper", device: str = "cuda", dataset_sr: int = 16000):
+    def __init__(self, codec_name: str = "encodec", device: str = "cuda", dataset_sr: int = 16000):
         super().__init__()
         self.codec_name = codec_name
-        self.emotion_model_name = emotion_model_name
         self.device = device
         self.dataset_sr = dataset_sr
 
@@ -43,7 +42,7 @@ class EpochInferenceCallback(Callback):
         self.codec = codec_class(device=self.device)
 
         # Load emotion classifier
-        self.emotion_model = VoxProfileEmotionModel(device=self.device, split_models=True)
+        self.model = VoxProfileAgeSexModel(device=self.device)
 
     def _resolve_dataloader(self, trainer):
         val_dataloaders = trainer.val_dataloaders
@@ -81,7 +80,7 @@ class EpochInferenceCallback(Callback):
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
         
-        x, _, emotion_labs, lengths = batch
+        x, sex_labs, lengths = batch
         
         if not isinstance(x, torch.Tensor):
             return
@@ -124,35 +123,35 @@ class EpochInferenceCallback(Callback):
             assert not torch.isnan(audio_private).any(), "NaNs detected in audio_private"
             assert not torch.isnan(audio_codec_only).any(), "NaNs detected in audio_codec_only"
 
-            emotion_logits_private = self.emotion_model(
+            _, sex_logits_private = self.model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
                     lengths=lengths_waveform
-                )[f"{self.emotion_model_name}_logits"]
+                )
         
-            emotion_logits_codec_only = self.emotion_model(
+            _, sex_logits_codec_only = self.model(
                 audio_codec_only, sr=self.dataset_sr, return_embeddings=False,
                 lengths=lengths_waveform
-            )[f"{self.emotion_model_name}_logits"]
+            )
         
-        assert not torch.isnan(emotion_logits_private).any(), "NaNs detected in emotion_logits_private"
-        assert not torch.isnan(emotion_logits_codec_only).any(), "NaNs detected in emotion_logits_codec_only"
+        assert not torch.isnan(sex_logits_private).any(), "NaNs detected in sex_logits_private"
+        assert not torch.isnan(sex_logits_codec_only).any(), "NaNs detected in sex_logits_codec_only"
         
         if was_training:
             pl_module.train()
 
-        emotion_probs_private = torch.softmax(emotion_logits_private, dim=-1)
-        emotion_probs_codec_only = torch.softmax(emotion_logits_codec_only, dim=-1)
+        sex_probs_private = torch.softmax(sex_logits_private, dim=-1)
+        sex_probs_codec_only = torch.softmax(sex_logits_codec_only, dim=-1)
 
-        emotion_accuracy_private = (emotion_probs_private.argmax(dim=-1) == emotion_labs).float().mean()
-        emotion_accuracy_codec_only = (emotion_probs_codec_only.argmax(dim=-1) == emotion_labs).float().mean()
+        sex_accuracy_private = (sex_probs_private.argmax(dim=-1) == sex_labs).float().mean()
+        sex_accuracy_codec_only = (sex_probs_codec_only.argmax(dim=-1) == sex_labs).float().mean()
 
-        emotion_entropy_private = - (emotion_probs_private * torch.log(emotion_probs_private + 1e-8)).sum(dim=-1).mean()
-        emotion_entropy_codec_only = - (emotion_probs_codec_only * torch.log(emotion_probs_codec_only + 1e-8)).sum(dim=-1).mean()
+        sex_entropy_private = - (sex_probs_private * torch.log(sex_probs_private + 1e-8)).sum(dim=-1).mean()
+        sex_entropy_codec_only = - (sex_probs_codec_only * torch.log(sex_probs_codec_only + 1e-8)).sum(dim=-1).mean()
 
-        pl_module.log("epoch_inference/emotion_accuracy_private", emotion_accuracy_private, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/emotion_accuracy_codec_only", emotion_accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/emotion_entropy_private", emotion_entropy_private, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/emotion_entropy_codec_only", emotion_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/sex_accuracy_private", sex_accuracy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/sex_accuracy_codec_only", sex_accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/sex_entropy_private", sex_entropy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/sex_entropy_codec_only", sex_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")
@@ -188,7 +187,7 @@ if __name__ == "__main__":
     stats = load_dataset_stats(dataset_name, codec_name, input_type)
 
     # Create Lightning module
-    pl_model = EmotionDisentangleModule(
+    pl_model = SexDisentangleModule(
         **config["lightning"],
         dataset_stats=stats
     )
@@ -205,7 +204,6 @@ if __name__ == "__main__":
     callbacks = []
     callbacks.append(EpochInferenceCallback(
         codec_name=codec_name,
-        emotion_model_name=config["dataset"]["emotion_model"],
         device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
     ))

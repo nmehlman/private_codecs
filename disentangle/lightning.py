@@ -28,14 +28,14 @@ def grl(x, lambd: float):
     return GradReverse.apply(x, lambd)
 
 
-class EmotionDisentangleModule(pl.LightningModule):
+class SexDisentangleModule(pl.LightningModule):
     def __init__(
         self,
         codec_dim: int,
         latent_dim: int,
         enc_channels: list,
         dec_channels: list,
-        num_classes: int = 9,
+        num_classes: int = 2,
         ae_kwargs: dict = {},
         adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
@@ -170,7 +170,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
         
     def training_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
+        x, sex_labs, lengths = batch
         
         if not self.use_adversarial:
             
@@ -208,7 +208,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             for _ in range(self.adv_update_factor):
                 self.toggle_optimizer(opt_adv)
                 adv_logits = self.adv_classifier(z, lengths)
-                adv_loss = F.cross_entropy(adv_logits, emotion_labs)
+                adv_loss = F.cross_entropy(adv_logits, sex_labs)
                 
                 # Check for NaN
                 self._check_nan(adv_loss, "train_adv_loss")
@@ -227,7 +227,7 @@ class EmotionDisentangleModule(pl.LightningModule):
                 opt_adv.zero_grad(set_to_none=True)
                 self.untoggle_optimizer(opt_adv)
             
-            adv_acc = self.train_accuracy(adv_logits, emotion_labs)
+            adv_acc = self.train_accuracy(adv_logits, sex_labs)
 
             # AE update step
             self._freeze(self.adv_classifier)
@@ -237,7 +237,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
 
             recon_loss = F.mse_loss(x_hat, x)
-            fool_loss = F.cross_entropy(fool_logits, emotion_labs)
+            fool_loss = F.cross_entropy(fool_logits, sex_labs)
 
             ae_loss = recon_loss + fool_loss
             
@@ -279,7 +279,7 @@ class EmotionDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, _, emotion_labs, lengths = batch
+        x, sex_labs, lengths = batch
         x_hat, z = self(x)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
@@ -293,7 +293,7 @@ class EmotionDisentangleModule(pl.LightningModule):
 
         if self.use_adversarial:
             adv_logits = self.adv_classifier(z, lengths)
-            adv_acc = self.validation_accuracy(adv_logits, emotion_labs)
+            adv_acc = self.validation_accuracy(adv_logits, sex_labs)
             self.log(
                 "val_adv_acc",
                 adv_acc.detach(),
