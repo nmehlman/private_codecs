@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import os
 import torchaudio
 import csv
+import tqdm
 
 VOX1_SR = 16000  # VoxCeleb1 is typically 16kHz
 
