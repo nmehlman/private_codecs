@@ -29,19 +29,20 @@ class VoxProfileAgeSexModel:
         if lengths is None:
             lengths = torch.tensor([audio.shape[1]] * audio.shape[0]).to(self.device)
 
-        logits, embedding, _, _, _, _ = self.model(
+        age, sex, embedding, _ = self.model(
             audio, return_feature=True, length=lengths
         )
 
         if return_embeddings:
-            return logits, embedding
+            return age, sex, embedding
         else:
-            return logits
+            return age, sex
         
 if __name__ == "__main__":
     model = VoxProfileAgeSexModel(device="cpu")
     dummy_audio = torch.randn(4, 16000 * 5)
     dummy_lengths = torch.tensor([16000 * 5, 16000 * 5, 16000 * 5, 16000 * 5])
-    logits, embedding = model(dummy_audio, sr=16000, return_embeddings=True, lengths=None)
-    print("Logits shape:", logits.shape)
+    age, sex, embedding = model(dummy_audio, sr=16000, return_embeddings=True, lengths=None)
+    print("Age shape:", age.shape)
+    print("Sex shape:", sex.shape)
     print("Embedding shape:", embedding.shape)
