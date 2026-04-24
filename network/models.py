@@ -29,7 +29,7 @@ class VoxProfileAgeSexModel:
         if lengths is None:
             lengths = torch.tensor([audio.shape[1]] * audio.shape[0]).to(self.device)
 
-        age, sex, embedding, _ = self.model(
+        age, sex, embedding = self.model(
             audio, return_feature=True, length=lengths
         )
 
