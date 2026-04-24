@@ -69,8 +69,8 @@ class Vox1Dataset(Dataset):
         """Load samples and gender labels from metadata CSV."""
         with open(metadata_path, "r", newline="") as f:
             reader = csv.DictReader(f, delimiter='\t')
-            
-            for row in tqdm.tqdm(reader, desc='Reading data'):
+            print(len(list(reader)))
+            for row in reader:
                 # Adjust column names as needed for your metadata format
                 speaker_id = row.get("VoxCelebID", row.get("ID", "")).strip()
                 gender = row.get("Gender", "").strip().lower()
