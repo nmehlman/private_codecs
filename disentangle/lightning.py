@@ -35,7 +35,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         latent_dim: int,
         enc_channels: list,
         dec_channels: list,
-        num_emotion_classes: int = 9,
+        num_classes: int = 9,
         ae_kwargs: dict = {},
         adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
@@ -65,7 +65,7 @@ class EmotionDisentangleModule(pl.LightningModule):
         if self.use_adversarial:
             self.adv_classifier = AdversarialClassifier(
                 input_dim=latent_dim,
-                num_classes=num_emotion_classes,
+                num_classes=num_classes,
                 channels=adversarial_channels,
                 **adversarial_kwargs,
             )
@@ -85,8 +85,8 @@ class EmotionDisentangleModule(pl.LightningModule):
         self.gradient_clip_val = gradient_clip_val
         
         if self.use_adversarial:
-            self.train_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
-            self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_emotion_classes)
+            self.train_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+            self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
         if self.normalize_input:
             assert self.dataset_stats, "Dataset stats must be provided for normalization."
@@ -100,8 +100,6 @@ class EmotionDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_mean", mean.view(1, -1, 1))
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
-
-    
 
     def forward(self, x):
         

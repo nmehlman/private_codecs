@@ -37,28 +37,23 @@ class EmbeddingDataset(Dataset):
             sample = pickle.load(f)
             
         features = sample[self.input_type]
-        emotion_lab = sample[f"{self.emotion_model}_emotion_logits"].argmax().item()
-        emotion_emb = sample[f"{self.emotion_model}_emotion_embedding"].detach()
+        emotion_lab = sample["label"].item()
         
         # Check for NaN values
         if torch.isnan(features).any():
             print(sample['filename'], flush=True)
             raise ValueError(f"NaN found in features at index {index}")
-        if torch.isnan(emotion_emb).any():
-            print(sample['filename'], flush=True)
-            raise ValueError(f"NaN found in emotion_emb at index {index}")
         
         length = features.shape[-1]
 
-        return (features, emotion_emb, emotion_lab, length)
+        return (features, emotion_lab, length)
         
     @staticmethod
     def collate_function(batch):
         
         features = [item[0] for item in batch]
-        emotion_embs = torch.stack([item[1] for item in batch], dim=0)
-        emotion_labs = torch.tensor([item[2] for item in batch], dtype=torch.long)
-        lengths = torch.tensor([item[3] for item in batch], dtype=torch.long)
+        labs = torch.tensor([item[1] for item in batch], dtype=torch.long)
+        lengths = torch.tensor([item[2] for item in batch], dtype=torch.long)
         max_len = max(feats.shape[-1] for feats in features)
         
         padded_features = []
@@ -76,7 +71,7 @@ class EmbeddingDataset(Dataset):
         batch_features = torch.stack(padded_features, dim=0)
         
 
-        return batch_features, emotion_embs, emotion_labs, lengths
+        return batch_features, labs, lengths
     
 
 def get_dataloaders(
@@ -126,7 +121,6 @@ def get_dataloaders(
 if __name__ == "__main__":
 
     data_path = "/project2/shrikann_35/DATA/expresso/codec_feats/encodec"
-    emotion_model = "wavlm"
     
     stats = {}
 
@@ -135,7 +129,6 @@ if __name__ == "__main__":
         dataset_path=data_path,
         split="train",
         input_type="quantized_embedding",
-        emotion_model=emotion_model
     )
 
     quantized_dataloader = DataLoader(
@@ -145,7 +138,7 @@ if __name__ == "__main__":
         collate_fn=EmbeddingDataset.collate_function
     )
 
-    print(f"\nComputing statistics for quantized embeddings ({emotion_model})...")
+    print(f"\nComputing statistics for quantized embeddings...")
     quantized_features_list = []
     for batch in quantized_dataloader:
         features, _, _, lengths = batch
@@ -171,7 +164,6 @@ if __name__ == "__main__":
         dataset_path=data_path,
         split="train",
         input_type="raw_embedding",
-        emotion_model=emotion_model
     )
 
     raw_dataloader = DataLoader(
@@ -181,7 +173,7 @@ if __name__ == "__main__":
         collate_fn=EmbeddingDataset.collate_function
     )
 
-    print(f"\nComputing statistics for raw embeddings ({emotion_model})...")
+    print(f"\nComputing statistics for raw embeddings...")
     raw_features_list = []
     for batch in raw_dataloader:
         features, _, _, lengths = batch
