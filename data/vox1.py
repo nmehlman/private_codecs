@@ -70,7 +70,6 @@ class Vox1Dataset(Dataset):
         with open(metadata_path, "r", newline="") as f:
             reader = csv.DictReader(f, delimiter='\t')
             for row in reader:
-                print(row)
                 # Adjust column names as needed for your metadata format
                 speaker_id = row.get("VoxCeleb1 ID").strip()
                 gender = row.get("Gender").strip().lower()
@@ -80,16 +79,19 @@ class Vox1Dataset(Dataset):
 
                 # Find audio files for this speaker
                 speaker_dir = os.path.join(self.data_dir, self.audio_subdir, 'wav', speaker_id)
-                print(speaker_dir)
                 
                 if os.path.isdir(speaker_dir):
-                    for fname in os.listdir(speaker_dir):
-                        if fname.lower().endswith(".wav"):
-                            self.sample_index.append({
-                                "speaker_id": speaker_id,
-                                "filename": fname,
-                                "gender": gender,
-                            })
+                    for subdir in os.listdir(speaker_dir):
+                        subdir_path = os.path.join(speaker_dir, subdir)
+                        if os.path.isdir(subdir_path):
+                            for fname in os.listdir(subdir_path):
+                                if fname.lower().endswith(".wav"):
+                                    self.sample_index.append({
+                                        "speaker_id": speaker_id,
+                                        "filename": fname,
+                                        "gender": gender,
+                                        "path": os.path.join(subdir_path, fname),
+                                    })
 
     def __len__(self):
         return len(self.sample_index)
@@ -100,12 +102,7 @@ class Vox1Dataset(Dataset):
         fname = sample_info["filename"]
         gender = sample_info["gender"]
 
-        audio_path = os.path.join(
-            self.data_dir,
-            speaker_id,
-            self.audio_subdir,
-            fname,
-        )
+        audio_path = sample_info["path"]
 
         audio, sr = torchaudio.load(audio_path)
         assert sr == VOX1_SR, f"Expected sample rate {VOX1_SR}, but got {sr}"
