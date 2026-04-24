@@ -69,7 +69,6 @@ class Vox1Dataset(Dataset):
         """Load samples and gender labels from metadata CSV."""
         with open(metadata_path, "r", newline="") as f:
             reader = csv.DictReader(f, delimiter='\t')
-            print(len(list(reader)))
             for row in reader:
                 # Adjust column names as needed for your metadata format
                 speaker_id = row.get("VoxCelebID", row.get("ID", "")).strip()
@@ -79,7 +78,7 @@ class Vox1Dataset(Dataset):
                     continue
 
                 # Find audio files for this speaker
-                speaker_dir = os.path.join(self.data_dir, speaker_id, self.audio_subdir)
+                speaker_dir = os.path.join(self.data_dir, self.audio_subdir, speaker_id)
                 
                 if os.path.isdir(speaker_dir):
                     for fname in os.listdir(speaker_dir):
