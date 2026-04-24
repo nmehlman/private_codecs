@@ -72,8 +72,8 @@ class Vox1Dataset(Dataset):
             for row in reader:
                 print(row)
                 # Adjust column names as needed for your metadata format
-                speaker_id = row.get("VoxCelebID", row.get("ID", "")).strip()
-                gender = row.get("Gender", "").strip().lower()
+                speaker_id = row.get("VoxCeleb1 ID").strip()
+                gender = row.get("Gender").strip().lower()
 
                 if not speaker_id or gender not in self.gender_mapping:
                     continue
