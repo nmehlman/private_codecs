@@ -3,7 +3,7 @@ codec_name: "hificodec"
 dataset_name: "vox1"
 
 dataset:
-  data_dir: "/project2/shrikann_35/DATA/Vox1"
+  data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/"
   audio_subdir: "vox1_dev_wav"
 
 device: "cuda"
