@@ -10,7 +10,7 @@ import pickle
 import os
 import yaml
 
-from network.models import VoxProfileEmotionModel
+from network.models import VoxProfileAgeSexModel
 
 CODECS = {
     "encodec": (EnCodec, ENCODEC_SR),
@@ -51,12 +51,6 @@ if __name__ == "__main__":
     codec_class, codec_sr = CODECS[codec_name]
     dataset_class, dataset_sr = DATASETS[dataset_name]
 
-    # Only load emotion model if not vox1
-    if dataset_name != "vox1":
-        emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
-    else:
-        emotion_model = None
-
     codec = codec_class(device=config["device"])
     dataset = dataset_class(**config["dataset"])
 
@@ -70,15 +64,6 @@ if __name__ == "__main__":
             label = sample["emotion"]
         filename = sample["filename"]
         length = sample["length"]
-
-        # Only compute emotion logits if not vox1
-        if emotion_model is not None:
-            emotion_logits, emotion_embedding = emotion_model(
-                audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
-            )
-        else:
-            emotion_logits = None
-            emotion_embedding = None
         
         with torch.no_grad():
             embeddings = codec.encode(audio, sr=dataset_sr)
@@ -92,11 +77,6 @@ if __name__ == "__main__":
             print(f"Skipping {filename} due to NaN values in codec output")
             continue
         
-        if emotion_logits is not None:
-            if torch.isnan(emotion_logits["whisper_logits"]).any() or torch.isnan(emotion_logits["wavlm_logits"]).any():
-                print(f"Skipping {filename} due to NaN values in emotion logits")
-                continue
-
         save_dict = {
                 "filename": filename,
                 "label": label,
@@ -104,15 +84,7 @@ if __name__ == "__main__":
                 "quantized_embedding": quantized_embeddings.cpu(),
                 "raw_embedding": embeddings.cpu().squeeze(),
             }
-        
-        # Add emotion-related fields only if not vox1
-        if emotion_logits is not None:
-            save_dict.update({
-                "whisper_emotion_logits": emotion_logits["whisper_logits"].cpu().squeeze(),
-                "wavlm_emotion_logits": emotion_logits["wavlm_logits"].cpu().squeeze(),
-                "whisper_emotion_embedding": emotion_embedding["whisper_embedding"].cpu().squeeze(),
-                "wavlm_emotion_embedding": emotion_embedding["wavlm_embedding"].cpu().squeeze(),
-            })
+
         
         save_path = os.path.join(save_root, f"{filename}.pkl")
         with open(save_path, "wb") as f:
