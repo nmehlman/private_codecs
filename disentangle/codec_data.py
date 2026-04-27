@@ -37,7 +37,7 @@ class EmbeddingDataset(Dataset):
             sample = pickle.load(f)
             
         features = sample[self.input_type]
-        emotion_lab = sample["label"].item()
+        emotion_lab = sample["label"]
         
         # Check for NaN values
         if torch.isnan(features).any():
