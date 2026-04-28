@@ -44,7 +44,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
     # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
-            audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
+            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
         )
     
     # Encode audio with codec
