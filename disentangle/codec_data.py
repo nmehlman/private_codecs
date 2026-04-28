@@ -124,7 +124,7 @@ def get_dataloaders(
     
 if __name__ == "__main__":
 
-    data_path = "/project2/shrikann_35/DATA/Vox1/codec_feats/hificodec/"
+    data_path = "/project2/shrikann_35/DATA/Vox1/codec_feats/"
     
     stats = {}
 
@@ -132,6 +132,7 @@ if __name__ == "__main__":
     quantized_dataset = EmbeddingDataset(
         dataset_path=data_path,
         split="dev",
+        codec="hificodec",
         input_type="quantized_embedding",
     )
 
@@ -167,6 +168,7 @@ if __name__ == "__main__":
     raw_dataset = EmbeddingDataset(
         dataset_path=data_path,
         split="dev",
+        codec="hificodec",
         input_type="raw_embedding",
     )
 
