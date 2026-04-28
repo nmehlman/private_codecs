@@ -146,13 +146,14 @@ if __name__ == "__main__":
     print(f"\nComputing statistics for quantized embeddings...")
     quantized_features_list = []
     for batch in quantized_dataloader:
-        features, _, _, lengths = batch
+        features, _, lengths = batch
         # Collect only the non-padded part of each sample
         for i, length in enumerate(lengths):
             quantized_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)
     
     # Concatenate all samples along time dimension
     quantized_all = torch.cat(quantized_features_list, dim=-1)  # (codec_dim, total_time_steps)
+    print(quantized_all.shape)
     quantized_mean = quantized_all.mean(dim=-1)  # (codec_dim,)
     quantized_std = quantized_all.std(dim=-1)  # (codec_dim,)
     print(f"Quantized embeddings - Mean shape: {quantized_mean.shape}, Std shape: {quantized_std.shape}")
