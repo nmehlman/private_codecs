@@ -176,10 +176,8 @@ if __name__ == "__main__":
     dataset_name = config["dataset_name"]
     codec_name = config["codec_name"]
     input_type = config["input_type"]
-    emotion_conditioning_model = config["emotion_conditioning_model"]
 
     stats = load_dataset_stats("expresso", codec_name, input_type) # DEBUG
-    prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model, mode=config.get("prototype_mode", "average"))
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
