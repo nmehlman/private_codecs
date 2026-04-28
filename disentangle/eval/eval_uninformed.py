@@ -64,11 +64,11 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
     # Resample audios to dataset sr for sex model
     audio_private = torchaudio.functional.resample(
         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
-    ).unsqueeze(0)
+    )
     
     audio_codec_only = torchaudio.functional.resample(
         audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
-    ).unsqueeze(0)
+    )
     
     # Get sex logits for all private audios
     with torch.no_grad():
