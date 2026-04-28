@@ -182,7 +182,7 @@ if __name__ == "__main__":
     print(f"\nComputing statistics for raw embeddings...")
     raw_features_list = []
     for batch in raw_dataloader:
-        features, _, _, lengths = batch
+        features, _, lengths = batch
         # Collect only the non-padded part of each sample
         for i, length in enumerate(lengths):
             raw_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)
