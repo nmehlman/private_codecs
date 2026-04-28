@@ -177,7 +177,7 @@ if __name__ == "__main__":
     codec_name = config["codec_name"]
     input_type = config["input_type"]
 
-    stats = load_dataset_stats("expresso", codec_name, input_type) # DEBUG
+    stats = load_dataset_stats(dataset_name, codec_name, input_type)
     
     # Load disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
