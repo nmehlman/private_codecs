@@ -4,7 +4,7 @@
 random_seed: 42
 ckpt_path: null
 gpus: "0"
-dataset_name: "expresso"
+dataset_name: "vox1"
 dataset_sr: 16000
 codec_name: "hificodec"
 input_type: "quantized_embedding"

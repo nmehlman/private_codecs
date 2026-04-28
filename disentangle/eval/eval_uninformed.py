@@ -1,10 +1,11 @@
 # TODO swap out prototypes from other cases
 
-from disentangle.lightning import EmotionDisentangleModule
+from disentangle.lightning import SexDisentangleModule
 from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
-from network.models import VoxProfileEmotionModel
+from network.models import VoxProfileAgeSexModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
+from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 
 import argparse
@@ -12,7 +13,6 @@ import os
 import re
 import pytorch_lightning as pl
 import yaml
-from torch.utils.data import DataLoader
 
 import tqdm
 import torch
@@ -32,7 +32,7 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr, config):
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config):
     
     """Process a single sample with exhaustive strategy (all emotion prototypes)."""
     
@@ -43,7 +43,7 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
     
     # Get emotion embedding for raw audio
     with torch.no_grad():
-        emotion_logits_raw, _ = emotion_model(
+        _, sex_logits_raw = sex_model(
             audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
         )
     
@@ -72,12 +72,12 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
     
     # Get emotion logits for all private audios
     with torch.no_grad():
-        emotion_logits_private = emotion_model(
+        _, sex_logits_private = sex_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, 
                 lengths=torch.tensor([length]).to(config["device"])
             )
        
-        emotion_logits_codec_only = emotion_model(
+        _, sex_logits_codec_only = sex_model(
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(config["device"])
         )    
@@ -86,12 +86,9 @@ def process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr,
     results = {
         "filename": filename,
         "label": label,
-        "whisper_emotion_logits_raw": emotion_logits_raw["whisper_logits"].cpu().squeeze(),
-        "wavlm_emotion_logits_raw": emotion_logits_raw["wavlm_logits"].cpu().squeeze(),
-        "whisper_emotion_logits_codec_only": emotion_logits_codec_only["whisper_logits"].cpu().squeeze(),
-        "wavlm_emotion_logits_codec_only": emotion_logits_codec_only["wavlm_logits"].cpu().squeeze(),
-        "whisper_emotion_logits_private": emotion_logits_private["whisper_logits"].cpu().squeeze(),
-        "wavlm_emotion_logits_private": emotion_logits_private["wavlm_logits"].cpu().squeeze(),
+        "sex_logits_raw": sex_logits_raw.cpu().squeeze(),
+        "sex_logits_private": sex_logits_private.cpu().squeeze(),
+        "sex_logits_codec_only": sex_logits_codec_only.cpu().squeeze(),
         "raw_embedding_stats": get_stats(quantized_embedding_raw),
         "private_embedding_stats": get_stats(embedding_private_quantized),
         "audio_raw": audio.cpu().squeeze(),
@@ -138,6 +135,7 @@ CODECS = {
 DATASETS = {
     "expresso": (ExpressoDataset, EXPRESSO_SR), 
     "msp_podcast": (MSPPodcastDataset, MSP_SR),
+    "vox1": (Vox1Dataset, VOX1_SR),
 }
 
 if __name__ == "__main__":
@@ -180,15 +178,15 @@ if __name__ == "__main__":
     input_type = config["input_type"]
     emotion_conditioning_model = config["emotion_conditioning_model"]
 
-    stats = load_dataset_stats(dataset_name, codec_name, input_type)
+    stats = load_dataset_stats("expresso", codec_name, input_type) # DEBUG
     prototypes = load_emotion_prototypes(dataset_name, "train", emotion_conditioning_model, mode=config.get("prototype_mode", "average"))
     
     # Load emotion disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
-    pl_model = EmotionDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
+    pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
     
     # Load VP emotion model (pretrained/fixed)
-    emotion_model = VoxProfileEmotionModel(device=config["device"], split_models=True)
+    sex_model = VoxProfileAgeSexModel(device=config["device"], split_models=True)
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
@@ -201,19 +199,15 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, emotion_model, dataset_sr, codec_sr, config)
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config)
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
             "filename": results["filename"],
             "label": results["label"],
-            "whisper_emotion_logits_raw": results["whisper_emotion_logits_raw"],
-            "whisper_emotion_logits_private": results["whisper_emotion_logits_private"],
-            "wavlm_emotion_logits_raw": results["wavlm_emotion_logits_raw"],
-            "wavlm_emotion_logits_private": results["wavlm_emotion_logits_private"],
-            "whisper_emotion_logits_codec_only": results["whisper_emotion_logits_codec_only"],
-            "wavlm_emotion_logits_codec_only": results["wavlm_emotion_logits_codec_only"],
-            "raw_embedding_stats": results["raw_embedding_stats"],
+            "sex_logits_raw": results["sex_logits_raw"],
+            "sex_logits_private": results["sex_logits_private"],
+            "sex_logits_codec_only": results["sex_logits_codec_only"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
         }
