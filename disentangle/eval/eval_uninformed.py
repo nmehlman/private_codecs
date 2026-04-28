@@ -184,7 +184,7 @@ if __name__ == "__main__":
     pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
     
     # Load VP emotion model (pretrained/fixed)
-    sex_model = VoxProfileAgeSexModel(device=config["device"], split_models=True)
+    sex_model = VoxProfileAgeSexModel(device=config["device"])
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
