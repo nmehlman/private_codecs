@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Example usage
     remote_user = 'nmehlman'
     remote_host = 'discovery.usc.edu'
-    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/removal-test/version_2/'
+    log_dir = '/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender_test/version_0/'
     local_dir = '/Users/nmehlman/Desktop/temp'
     N = 3  # Number of files to copy
 

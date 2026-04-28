@@ -32,6 +32,8 @@ class VoxProfileAgeSexModel:
         age, sex, embedding = self.model(
             audio, return_feature=True, length=lengths
         )
+        
+        sex = sex.flip(-1)  # Flip to [male, female]
 
         if return_embeddings:
             return age, sex, embedding
