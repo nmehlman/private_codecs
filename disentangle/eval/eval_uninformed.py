@@ -1,7 +1,7 @@
 # TODO swap out prototypes from other cases
 
 from disentangle.lightning import SexDisentangleModule
-from disentangle.misc.utils import load_dataset_stats, load_emotion_prototypes
+from disentangle.misc.utils import load_dataset_stats
 from network.models import VoxProfileAgeSexModel
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
@@ -34,14 +34,14 @@ def get_stats(tensor):
 
 def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config):
     
-    """Process a single sample with exhaustive strategy (all emotion prototypes)."""
+    """Process a single sample."""
     
     audio = sample["audio"].to(config["device"])
-    label = sample["emotion"]
+    label = sample["gender"]
     filename = sample["filename"]
     length = sample["length"]
     
-    # Get emotion embedding for raw audio
+    # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
             audio, sr=dataset_sr, return_embeddings=True, lengths=torch.tensor([length]).to(config["device"])
@@ -61,7 +61,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
     with torch.no_grad():
         audio_codec_only = codec.decode(codes_raw)
     
-    # Resample audios to dataset sr for emotion model
+    # Resample audios to dataset sr for sex model
     audio_private = torchaudio.functional.resample(
         audio_private, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
@@ -70,7 +70,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
         audio_codec_only, orig_freq=codec_sr, new_freq=dataset_sr
     ).unsqueeze(0)
     
-    # Get emotion logits for all private audios
+    # Get sex logits for all private audios
     with torch.no_grad():
         _, sex_logits_private = sex_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, 
@@ -82,7 +82,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
             lengths=torch.tensor([length]).to(config["device"])
         )    
     
-    # Build results dict - note that emotion_logits_private is a dict of logits
+    # Build results dict
     results = {
         "filename": filename,
         "label": label,
@@ -179,11 +179,11 @@ if __name__ == "__main__":
 
     stats = load_dataset_stats("expresso", codec_name, input_type) # DEBUG
     
-    # Load emotion disentanglement model from checkpoint
+    # Load disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
     pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=stats, **train_config["lightning"]).to(config["device"]).eval()
     
-    # Load VP emotion model (pretrained/fixed)
+    # Load VP model (pretrained/fixed)
     sex_model = VoxProfileAgeSexModel(device=config["device"])
     
     # Load speech codec
