@@ -54,7 +54,7 @@ if __name__ == "__main__":
     codec = codec_class(device=config["device"])
     dataset = dataset_class(**config["dataset"])
 
-    for sample in tqdm.tqdm(dataset, total=len(dataset), desc="Exporting Data"):
+    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Exporting Data"):
         
         audio = sample["audio"].to(config["device"])
         # Handle both emotion and gender labels depending on dataset
@@ -86,6 +86,6 @@ if __name__ == "__main__":
             }
 
         
-        save_path = os.path.join(save_root, f"{filename}.pkl")
+        save_path = os.path.join(save_root, f"{i}_{filename}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
