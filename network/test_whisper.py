@@ -17,8 +17,8 @@ if __name__ == "__main__":
         singleton_embs.append(emb)
 
     singleton_embs = torch.cat(singleton_embs, dim=0)
-    print(batch_emb == singleton_embs)  # Should be True if they are the same
-    print(batch_emb[0], singleton_embs[0])  # Print to visually confirm they are the same
+    print(torch.abs(batch_emb - singleton_embs).mean())  # Should be True if they are the same
+    print(batch_emb[0][:10], singleton_embs[0][:10])  # Print to visually confirm they are the same
 
     print("Without lengths:")
     _, batch_emb, _, _, _, _ = model(x, length=None, return_feature=True)  
@@ -28,5 +28,5 @@ if __name__ == "__main__":
         _, emb, _, _, _, _ = model(x[i:i+1], length=None, return_feature=True)
         singleton_embs.append(emb)  
     singleton_embs = torch.cat(singleton_embs, dim=0)
-    print(batch_emb == singleton_embs)  # Should be True if they are the same
-    print(batch_emb[0], singleton_embs[0])  # Print to visually confirm
+    print(torch.abs(batch_emb - singleton_embs).mean())  # Should be True if they are the same
+    print(batch_emb[0][:10], singleton_embs[0][:10])  # Print to visually confirm
