@@ -156,7 +156,7 @@ class WhisperWrapper(nn.Module):
             )
             features = features.input_features.to(x.device)
         else:
-            max_audio_len = 3*16000
+            max_audio_len = 15*16000
             new_x = list()
             for idx in range(x.shape[0]):
                 new_x.append(x[idx].detach().cpu().numpy())
@@ -166,7 +166,7 @@ class WhisperWrapper(nn.Module):
                 new_x,
                 return_tensors="pt", 
                 sampling_rate=16000,
-                max_length=max_audio_len
+               # max_length=max_audio_len
             )
             features = features.input_features.to(x.device)
         
