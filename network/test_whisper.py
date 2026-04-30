@@ -6,7 +6,7 @@ if __name__ == "__main__":
     x = torch.randn(2, 16000 * 3)
     length = torch.tensor([16000 * 1, 16000 * 2])
 
-    model = WhisperWrapper()
+    model = WhisperWrapper(pretrain_model="whisper_large")
 
     print("With lengths:")
     _, batch_emb, _, _, _, _ = model(x, length=length)
