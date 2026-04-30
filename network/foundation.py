@@ -14,6 +14,9 @@ from huggingface_hub import PyTorchModelHubMixin
 from transformers import WhisperModel, AutoFeatureExtractor
 
 
+WAVLM_SR = 16000
+WHISPER_SR = 16000
+
 class WavLMWrapper(nn.Module):
     """Simple WavLM wrapper that loads a pretrained model and returns pooled embeddings.
 
