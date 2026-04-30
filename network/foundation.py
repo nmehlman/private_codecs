@@ -122,6 +122,8 @@ class WhisperWrapper(nn.Module):
 
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(feat_id)
         self.backbone_model = WhisperModel.from_pretrained(model_id, output_hidden_states=True)
+        self.embed_positions = copy.deepcopy(self.backbone_model.encoder.embed_positions.weight)
+        self.embed_positions.requires_grad = False
 
         if self.device is not None:
             self.to(self.device)
@@ -135,29 +137,69 @@ class WhisperWrapper(nn.Module):
         """Return last encoder hidden states: Tensor of shape (B, T', D).
 
         x: list of 1D arrays/tensors (cpu) or tensor of shape (B, T)
+        length: optional sequence lengths for attention mask
         """
-        # prepare list of numpy arrays for the feature extractor
-        new_x = []
-        if isinstance(x, torch.Tensor):
-            for idx in range(x.shape[0]):
+        # 1. feature extraction
+        if length is not None:
+            max_audio_len = 3 * 16000
+            # Append to list for feature_extractor to work
+            new_x = []
+            for idx in range(len(length)):
                 new_x.append(x[idx].detach().cpu().numpy())
+            
+            # Max length is max audio len in a batch
+            features = self.feature_extractor(
+                new_x,
+                return_tensors="pt", 
+                sampling_rate=16000,
+                max_length=max_audio_len
+            )
+            features = features.input_features.to(self.device) if self.device is not None else features.input_features
         else:
-            for idx in range(len(x)):
-                # assume already CPU numpy or tensor
-                xi = x[idx]
-                if torch.is_tensor(xi):
-                    new_x.append(xi.detach().cpu().numpy())
-                else:
-                    new_x.append(xi)
-
-        features = self.feature_extractor(new_x, return_tensors="pt", sampling_rate=16000, padding=True)
-        inputs = features.input_features.to(self.device) if self.device is not None else features.input_features
-
+            max_audio_len = 3 * 16000
+            new_x = []
+            if isinstance(x, torch.Tensor):
+                for idx in range(x.shape[0]):
+                    new_x.append(x[idx].detach().cpu().numpy())
+            else:
+                for idx in range(len(x)):
+                    xi = x[idx]
+                    if torch.is_tensor(xi):
+                        new_x.append(xi.detach().cpu().numpy())
+                    else:
+                        new_x.append(xi)
+            
+            features = self.feature_extractor(
+                new_x,
+                return_tensors="pt", 
+                sampling_rate=16000,
+                max_length=max_audio_len
+            )
+            features = features.input_features.to(self.device) if self.device is not None else features.input_features
+        
+        # 2. Replace positional embeddings if needed
+        if length is not None:
+            length = self._get_feat_extract_output_lengths(length.detach().cpu())
+            self.backbone_model.encoder.embed_positions = self.backbone_model.encoder.embed_positions.from_pretrained(self.embed_positions[:750])
+        else:
+            length = torch.tensor([len(x[0])] if isinstance(x, torch.Tensor) else [len(x[0])])
+            length = self._get_feat_extract_output_lengths(length)
+            self.backbone_model.encoder.embed_positions = self.backbone_model.encoder.embed_positions.from_pretrained(self.embed_positions[:750])
+        
+        # 3. transformer encoding features
         with torch.no_grad():
-            z = self.backbone_model(inputs, output_hidden_states=True).encoder_hidden_states
-
+            features = self.backbone_model.encoder(
+                features, output_hidden_states=True
+            ).hidden_states
+        
         # return last encoder layer hidden states
-        return z[-1]
+        return features[-1]
+
+    def _get_feat_extract_output_lengths(self, input_lengths):
+        """Computes the output length of the convolutional layers"""
+        input_lengths = input_lengths // 160
+        input_lengths = (input_lengths - 1) // 2 + 1
+        return input_lengths
     
 if __name__ == "__main__":
 
