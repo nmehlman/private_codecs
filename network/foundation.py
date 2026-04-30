@@ -1,6 +1,7 @@
 from torch import nn
 from transformers import Wav2Vec2FeatureExtractor
 from transformers import WavLMModel
+from speechbrain.lobes.models.huggingface_transformers.huggingface import make_padding_masks
 
 
 class WavLMWrapper(nn.Module):
@@ -42,55 +43,41 @@ class WavLMWrapper(nn.Module):
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
-    def forward(self, x, sampling_rate=16000):
+    def forward(self, x, length=None):
         """Return per-sample embeddings of shape (B, D).
 
         x: either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T)
         """
-        # Prepare inputs via processor when available
-        if self.processor is not None:
-            # processor can handle list of numpy arrays or tensors
-            inputs = self.processor(x, sampling_rate=sampling_rate, return_tensors="pt", padding=True)
-            input_values = inputs["input_values"]
-            attention_mask = inputs.get("attention_mask", None)
-            if self.device is not None:
-                input_values = input_values.to(self.device)
-                if attention_mask is not None:
-                    attention_mask = attention_mask.to(self.device)
+        if self.pretrain_model == "wavlm_large":  
+            with torch.no_grad():
+                signal, attention_mask = list(), list()
+                if length is not None: attention_mask = make_padding_masks(x, wav_len=length/length.max()).to(x.device)
+                else: attention_mask = make_padding_masks(x, wav_len=torch.tensor([1]*len(x)).to(x.device)).to(x.device)
 
-            outputs = self.backbone_model(input_values, attention_mask=attention_mask)
-            last_hidden = outputs.last_hidden_state
-            if attention_mask is not None:
-                # compute masked mean over time dim
-                mask = attention_mask.unsqueeze(-1).to(last_hidden.dtype)
-                summed = (last_hidden * mask).sum(dim=1)
-                lengths = mask.sum(dim=1).clamp(min=1e-9)
-                pooled = summed / lengths
-            else:
-                pooled = last_hidden.mean(dim=1)
+                for idx in range(len(x)):
+                    input = self.processor(x[idx], sampling_rate=16_000, return_tensors="pt", padding=True)
+                    signal.append(input["input_values"][0].to(x.device))
+                signal = torch.stack(signal)
+        
+        # 2. get length and mask
+        if length is not None:
+            length = self.get_feat_extract_output_lengths(length.detach().cpu())
+            length = length.cuda()
 
-            return pooled
-
-        else:
-            # assume x is a tensor (B, T)
-            if self.device is not None:
-                x = x.to(self.device)
-            outputs = self.backbone_model(x)
-            last_hidden = outputs.last_hidden_state
-            pooled = last_hidden.mean(dim=1)
-            return pooled
-
-    # kept for compatibility if other code calls it
-    def get_feat_extract_output_lengths(self, input_length):
-        def _conv_out_length(input_length, kernel_size, stride):
-            return (input_length - kernel_size) // stride + 1
-        cfg = getattr(self.backbone_model.config, "conv_kernel", None)
-        stride = getattr(self.backbone_model.config, "conv_stride", None)
-        if cfg is None or stride is None:
-            return input_length
-        for kernel_size, s in zip(cfg, stride):
-            input_length = _conv_out_length(input_length, kernel_size, s)
-        return input_length
+        if self.pretrain_model == "wavlm": 
+            z = self.backbone_model(
+                x, 
+                output_hidden_states=True
+            ).hidden_states
+        else: 
+            z = self.backbone_model(
+                signal, 
+                attention_mask=attention_mask, 
+                output_hidden_states=True
+            ).hidden_states
+        
+        return z
+        
     
 if __name__ == "__main__":
 
