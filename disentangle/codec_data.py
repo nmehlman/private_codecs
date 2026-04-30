@@ -153,7 +153,6 @@ if __name__ == "__main__":
     
     # Concatenate all samples along time dimension
     quantized_all = torch.cat(quantized_features_list, dim=-1)  # (codec_dim, total_time_steps)
-    print(quantized_all.shape)
     quantized_mean = quantized_all.mean(dim=-1)  # (codec_dim,)
     quantized_std = quantized_all.std(dim=-1)  # (codec_dim,)
     print(f"Quantized embeddings - Mean shape: {quantized_mean.shape}, Std shape: {quantized_std.shape}")
@@ -202,7 +201,7 @@ if __name__ == "__main__":
     }
 
     # Save statistics to JSON file
-    output_path = "dataset_stats_hificodec_vox1.json"
+    output_path = "misc/dataset_stats_hificodec_vox1.json"
     with open(output_path, "w") as f:
         json.dump(stats, f, indent=2)
     print(f"\n{'='*60}")
