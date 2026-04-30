@@ -3,6 +3,7 @@ from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
+from network.foundation import WavLMWrapper, WhisperWrapper, WAVLM_SR, WHISPER_SR
 import tqdm
 import torch
 import argparse
@@ -16,6 +17,8 @@ CODECS = {
     "encodec": (EnCodec, ENCODEC_SR),
     "hificodec": (HifiCodec, HIFICODEC_SR),
     "bigcodec": (BigCodec, BIGCODEC_SR),
+    "wavlm": (WavLMWrapper, WAVLM_SR),
+    "whisper": (WhisperWrapper, WHISPER_SR)
 }
 
 DATASETS = {
