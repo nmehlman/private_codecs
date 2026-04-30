@@ -54,7 +54,7 @@ if __name__ == "__main__":
     codec_class, codec_sr = CODECS[codec_name]
     dataset_class, dataset_sr = DATASETS[dataset_name]
 
-    codec = codec_class(device=config["device"])
+    codec = codec_class(device=config["device"]).to(config["device"])
     dataset = dataset_class(**config["dataset"])
 
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Exporting Data"):
