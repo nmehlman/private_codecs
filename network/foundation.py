@@ -76,7 +76,7 @@ class WavLMWrapper(nn.Module):
                 output_hidden_states=True
             ).hidden_states
         
-        return z
+        return z[-1] # Last layer only 
         
     
 if __name__ == "__main__":
