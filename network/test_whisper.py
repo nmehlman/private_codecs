@@ -21,11 +21,11 @@ if __name__ == "__main__":
     print(batch_emb[0], singleton_embs[0])  # Print to visually confirm they are the same
 
     print("Without lengths:")
-    _, batch_emb, _, _, _, _ = model(x, length=None)  
+    _, batch_emb, _, _, _, _ = model(x, length=None, return_feature=True)  
 
     singleton_embs = []
     for i in range(x.shape[0]):
-        _, emb, _, _, _, _ = model(x[i:i+1], length=None)
+        _, emb, _, _, _, _ = model(x[i:i+1], length=None, return_feature=True)
         singleton_embs.append(emb)  
     singleton_embs = torch.cat(singleton_embs, dim=0)
     print(batch_emb == singleton_embs)  # Should be True if they are the same
