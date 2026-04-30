@@ -98,7 +98,7 @@ class WhisperWrapper(nn.Module):
 
     Accepts either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T).
     """
-    def __init__(self, pretrain_model="whisper_base", device=None):
+    def __init__(self, pretrain_model="whisper_large", device=None):
         super().__init__()
         self.pretrain_model = pretrain_model
         self.device = device
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     import torch
 
-    model = WavLMWrapper(pretrain_model="wavlm_large", device="cuda")
+    model = WhisperWrapper(pretrain_model="whisper_large", device="cuda")
     dummy_audio = torch.randn(4, 16000 * 5, device="cuda")
     embeddings = model(dummy_audio)
     print("Embeddings shape:", embeddings.shape)
