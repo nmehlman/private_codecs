@@ -70,10 +70,13 @@ if __name__ == "__main__":
         
         with torch.no_grad():
             embeddings = codec.encode(audio, sr=dataset_sr)
-            codes, quantized_embeddings = codec.quantize(embeddings)
 
-        codes = codes.squeeze()
-        quantized_embeddings = quantized_embeddings.squeeze()
+        if codec_name in ["encodec", "hificodec", "bigcodec"]:
+            codes, quantized_embeddings = codec.quantize(embeddings)
+            codes = codes.squeeze().cpu()
+            quantized_embeddings = quantized_embeddings.squeeze().cpu()
+        else:
+            codes, quantized_embeddings = None, None
 
         # Check for NaN values
         if torch.isnan(embeddings).any() or torch.isnan(codes).any() or torch.isnan(quantized_embeddings).any():
@@ -83,8 +86,8 @@ if __name__ == "__main__":
         save_dict = {
                 "filename": filename,
                 "label": label,
-                "codes": codes.cpu(),
-                "quantized_embedding": quantized_embeddings.cpu(),
+                "codes": codes,
+                "quantized_embedding": quantized_embeddings,
                 "raw_embedding": embeddings.cpu().squeeze(),
             }
 
