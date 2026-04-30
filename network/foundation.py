@@ -158,7 +158,7 @@ class WhisperWrapper(nn.Module):
         else:
             max_audio_len = 3*16000
             new_x = list()
-            for idx in range(len(x.shape[0])):
+            for idx in range(x.shape[0]):
                 new_x.append(x[idx].detach().cpu().numpy())
             
             # Max length is max audio len in a batch
@@ -190,7 +190,7 @@ class WhisperWrapper(nn.Module):
 
         features = torch.stack(features, dim=0)[-1]
 
-        return features[-1]
+        return features
 
     def _get_feat_extract_output_lengths(self, input_lengths):
         """Computes the output length of the convolutional layers"""
