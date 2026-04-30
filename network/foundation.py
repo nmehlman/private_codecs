@@ -166,7 +166,7 @@ class WhisperWrapper(nn.Module):
                 new_x,
                 return_tensors="pt", 
                 sampling_rate=16000,
-               # max_length=max_audio_len
+                max_length=max_audio_len
             )
             features = features.input_features.to(x.device)
         
