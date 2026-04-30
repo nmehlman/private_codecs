@@ -139,11 +139,11 @@ class WhisperWrapper(nn.Module):
         x: list of 1D arrays/tensors (cpu) or tensor of shape (B, T)
         length: optional sequence lengths for attention mask
         """
-        # 1. feature extraction
+        # 1. feature extraction and projections
         if length is not None:
-            max_audio_len = 3 * 16000
+            max_audio_len = length.max().item()
             # Append to list for feature_extractor to work
-            new_x = []
+            new_x = list()
             for idx in range(len(length)):
                 new_x.append(x[idx].detach().cpu().numpy())
             
@@ -154,45 +154,42 @@ class WhisperWrapper(nn.Module):
                 sampling_rate=16000,
                 max_length=max_audio_len
             )
-            features = features.input_features.to(self.device) if self.device is not None else features.input_features
+            features = features.input_features.to(x.device)
         else:
-            max_audio_len = 3 * 16000
-            new_x = []
-            if isinstance(x, torch.Tensor):
-                for idx in range(x.shape[0]):
-                    new_x.append(x[idx].detach().cpu().numpy())
-            else:
-                for idx in range(len(x)):
-                    xi = x[idx]
-                    if torch.is_tensor(xi):
-                        new_x.append(xi.detach().cpu().numpy())
-                    else:
-                        new_x.append(xi)
+            max_audio_len = 3*16000
+            new_x = list()
+            for idx in range(len(x.shape[0])):
+                new_x.append(x[idx].detach().cpu().numpy())
             
+            # Max length is max audio len in a batch
             features = self.feature_extractor(
                 new_x,
                 return_tensors="pt", 
                 sampling_rate=16000,
                 max_length=max_audio_len
             )
-            features = features.input_features.to(self.device) if self.device is not None else features.input_features
+            features = features.input_features.to(x.device)
         
-        # 2. Replace positional embeddings if needed
+        # pdb.set_trace()
+        # 2. get length and mask
         if length is not None:
             length = self._get_feat_extract_output_lengths(length.detach().cpu())
+            # Replace positional embeddings
             self.backbone_model.encoder.embed_positions = self.backbone_model.encoder.embed_positions.from_pretrained(self.embed_positions[:750])
         else:
-            length = torch.tensor([len(x[0])] if isinstance(x, torch.Tensor) else [len(x[0])])
+            # Replace positional embeddings
+            length = torch.tensor([len(x[0])])
             length = self._get_feat_extract_output_lengths(length)
             self.backbone_model.encoder.embed_positions = self.backbone_model.encoder.embed_positions.from_pretrained(self.embed_positions[:750])
-        
+            
         # 3. transformer encoding features
-        with torch.no_grad():
-            features = self.backbone_model.encoder(
-                features, output_hidden_states=True
-            ).hidden_states
-        
-        # return last encoder layer hidden states
+        # compute reduced attention_mask corresponding to feature vectors
+        features = self.backbone_model.encoder(
+            features, output_hidden_states=True
+        ).hidden_states
+
+        features = torch.stack(features, dim=0)[-1]
+
         return features[-1]
 
     def _get_feat_extract_output_lengths(self, input_lengths):
@@ -205,7 +202,9 @@ if __name__ == "__main__":
 
     import torch
 
-    model = WhisperWrapper(pretrain_model="whisper_large", device="cuda")
-    dummy_audio = torch.randn(4, 16000 * 5, device="cuda")
+    device = 'cpu'
+
+    model = WhisperWrapper(pretrain_model="whisper_large", device=device)
+    dummy_audio = torch.randn(4, 16000 * 5, device=device)
     embeddings = model(dummy_audio)
     print("Embeddings shape:", embeddings.shape)
