@@ -62,7 +62,7 @@ class WavLMWrapper(nn.Module):
         # 2. get length and mask
         if length is not None:
             length = self.get_feat_extract_output_lengths(length.detach().cpu())
-            length = length.cuda()
+            length = length.to(self.device)
 
         if self.pretrain_model == "wavlm": 
             z = self.backbone_model(
@@ -84,6 +84,6 @@ if __name__ == "__main__":
     import torch
 
     model = WavLMWrapper(pretrain_model="wavlm_large", device="cuda")
-    dummy_audio = torch.randn(4, 16000 * 5)
+    dummy_audio = torch.randn(4, 16000 * 5, device="cuda")
     embeddings = model(dummy_audio)
     print("Embeddings shape:", embeddings.shape)
