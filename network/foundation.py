@@ -29,11 +29,9 @@ class WavLMWrapper(nn.Module):
     def __init__(
         self,
         pretrain_model="wavlm_large",
-        device=None,
     ):
         super().__init__()
         self.pretrain_model = pretrain_model
-        self.device = device
 
         if self.pretrain_model == "wavlm":
             self.backbone_model = WavLMModel.from_pretrained(
@@ -47,9 +45,6 @@ class WavLMWrapper(nn.Module):
                 "microsoft/wavlm-large",
                 output_hidden_states=False,
             )
-
-        if self.device is not None:
-            self.to(self.device)
 
         # default to eval and no grad (pretrained inference)
         self.backbone_model.eval()
@@ -75,7 +70,7 @@ class WavLMWrapper(nn.Module):
         # 2. get length and mask
         if length is not None:
             length = self.get_feat_extract_output_lengths(length.detach().cpu())
-            length = length.to(self.device)
+            length = length.to(x.device)
 
         if self.pretrain_model == "wavlm": 
             z = self.backbone_model(
@@ -101,10 +96,9 @@ class WhisperWrapper(nn.Module):
 
     Accepts either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T).
     """
-    def __init__(self, pretrain_model="whisper_large", device=None):
+    def __init__(self, pretrain_model="whisper_large"):
         super().__init__()
         self.pretrain_model = pretrain_model
-        self.device = device
 
         # choose model id
         if self.pretrain_model == "whisper_tiny":
@@ -128,9 +122,6 @@ class WhisperWrapper(nn.Module):
                 max_source_positions=750)
         self.embed_positions = copy.deepcopy(self.backbone_model.encoder.embed_positions.weight)
         self.embed_positions.requires_grad = False
-
-        if self.device is not None:
-            self.to(self.device)
 
         # pretrained inference mode
         self.backbone_model.eval()
