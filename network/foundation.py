@@ -85,5 +85,5 @@ if __name__ == "__main__":
 
     model = WavLMWrapper(pretrain_model="wavlm_large", device="cuda")
     dummy_audio = torch.randn(4, 16000 * 5)
-    embeddings = model(dummy_audio, sampling_rate=16000)
+    embeddings = model(dummy_audio)
     print("Embeddings shape:", embeddings.shape)
