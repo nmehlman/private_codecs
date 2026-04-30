@@ -76,7 +76,7 @@ if __name__ == "__main__":
             codes = codes.squeeze().cpu()
             quantized_embeddings = quantized_embeddings.squeeze().cpu()
         else:
-            codes, quantized_embeddings = None, None
+            codes, quantized_embeddings = torch.tensor([-1]), torch.tensor([-1])
 
         # Check for NaN values
         if torch.isnan(embeddings).any() or torch.isnan(codes).any() or torch.isnan(quantized_embeddings).any():
