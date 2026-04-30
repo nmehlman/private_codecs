@@ -51,7 +51,7 @@ class WavLMWrapper(nn.Module):
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
-    def forward(self, x, length=None):
+    def encode(self, x, length=None):
         """Return per-sample embeddings of shape (B, D).
 
         x: either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T)
