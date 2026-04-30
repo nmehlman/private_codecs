@@ -28,10 +28,13 @@ class WavLMWrapper(nn.Module):
     """
     def __init__(
         self,
+        device="cpu",
         pretrain_model="wavlm_large",
     ):
         super().__init__()
         self.pretrain_model = pretrain_model
+
+        self.device = device
 
         if self.pretrain_model == "wavlm":
             self.backbone_model = WavLMModel.from_pretrained(
@@ -47,7 +50,7 @@ class WavLMWrapper(nn.Module):
             )
 
         # default to eval and no grad (pretrained inference)
-        self.backbone_model.eval()
+        self.backbone_model.eval().to(self.device)
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
@@ -96,9 +99,10 @@ class WhisperWrapper(nn.Module):
 
     Accepts either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T).
     """
-    def __init__(self, pretrain_model="whisper_large"):
+    def __init__(self, pretrain_model="whisper_large", device="cpu"):
         super().__init__()
         self.pretrain_model = pretrain_model
+        self.device = device
 
         # choose model id
         if self.pretrain_model == "whisper_tiny":
@@ -124,7 +128,7 @@ class WhisperWrapper(nn.Module):
         self.embed_positions.requires_grad = False
 
         # pretrained inference mode
-        self.backbone_model.eval()
+        self.backbone_model.eval().to(self.device)
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
