@@ -125,7 +125,7 @@ class WhisperWrapper(nn.Module):
 
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(feat_id)
         self.backbone_model = WhisperModel.from_pretrained(model_id, output_hidden_states=True, ignore_mismatched_sizes=True,
-                max_source_positions=750)
+                max_source_positions=750).to(device)
         self.embed_positions = copy.deepcopy(self.backbone_model.encoder.embed_positions.weight)
         self.embed_positions.requires_grad = False
 
