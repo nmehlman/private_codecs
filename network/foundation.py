@@ -54,11 +54,13 @@ class WavLMWrapper(nn.Module):
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
-    def encode(self, x, length=None):
+    def encode(self, x, length=None, sr=16000):
         """Return per-sample embeddings of shape (B, D).
 
         x: either a list of 1D arrays/tensors (cpu) or a tensor of shape (B, T)
         """
+        assert sr == WAVLM_SR, f"WavLMWrapper expects audio at {WAVLM_SR} Hz, but got {sr} Hz."
+
         if self.pretrain_model == "wavlm_large":  
             with torch.no_grad():
                 signal, attention_mask = list(), list()
@@ -132,12 +134,15 @@ class WhisperWrapper(nn.Module):
         for p in self.backbone_model.parameters():
             p.requires_grad = False
 
-    def forward(self, x, length=None):
+    def encode(self, x, length=None, sr=16000):
         """Return last encoder hidden states: Tensor of shape (B, T', D).
 
         x: list of 1D arrays/tensors (cpu) or tensor of shape (B, T)
         length: optional sequence lengths for attention mask
+        sr: sampling rate
         """
+
+        assert sr == WHISPER_SR, f"WhisperWrapper expects audio at {WHISPER_SR} Hz, but got {sr} Hz."
         # 1. feature extraction and projections
         if length is not None:
             max_audio_len = length.max().item()
