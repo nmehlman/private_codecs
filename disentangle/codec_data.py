@@ -16,10 +16,12 @@ class EmbeddingDataset(Dataset):
             codec: str = "encodec",
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
+            max_length: int = 300
         ):
 
         self.input_type = input_type
         self.emotion_model = emotion_model
+        self.max_length = max_length
         
         data_root = os.path.join(dataset_path, codec, split)
         
@@ -45,6 +47,9 @@ class EmbeddingDataset(Dataset):
             raise ValueError(f"NaN found in features at index {index}")
         
         length = features.shape[-1]
+        if self.max_length and length > self.max_length:
+            features = features[:, :self.max_length]
+            length = self.max_length
 
         return (features, emotion_lab, length)
         
