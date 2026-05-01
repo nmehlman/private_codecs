@@ -17,7 +17,7 @@ dataset:
 
 # Dataloader options:
 dataloader:
-  batch_size: 32
+  batch_size: 64
   num_workers: 4
 
 # Model options:
@@ -31,9 +31,9 @@ lightning:
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
-  adv_annealing_steps: 10000 # ADDED
+  adv_annealing_steps: 10000 
   ae_warmup_steps: 10000
-  adv_loss_weight: 0.5        # ADDED
+  adv_loss_weight: 0.5        
   gradient_clip_val: 100.0
 
 
