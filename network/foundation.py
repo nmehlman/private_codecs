@@ -206,9 +206,9 @@ if __name__ == "__main__":
 
     import torch
 
-    device = 'cpu'
+    device = 'cuda'
 
-    model = WhisperWrapper(pretrain_model="whisper_large", device=device)
-    dummy_audio = torch.randn(4, 16000 * 5, device=device)
-    embeddings = model(dummy_audio)
+    model = WavLMWrapper(device=device)
+    dummy_audio = torch.randn(4, 16000 * 4, device=device)
+    embeddings = model.encode(dummy_audio)
     print("Embeddings shape:", embeddings.shape)

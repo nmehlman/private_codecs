@@ -26,14 +26,14 @@ lightning:
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
-  learning_rate: 0.002
+  learning_rate: 0.001
   weight_decay: 0
   normalize_input: true
   use_adversarial: true
   lr_scheduling: true
-  adv_annealing_steps: 10000 
-  ae_warmup_steps: 10000
-  adv_loss_weight: 0.5        
+  adv_annealing_steps: 50000 
+  ae_warmup_steps: 50000
+  adv_loss_weight: 1.0        
   gradient_clip_val: 100.0
 
 
