@@ -35,7 +35,7 @@ lightning:
   ae_warmup_steps: 50000
   adv_loss_weight: 1.0        
   gradient_clip_val: 100.0
-
+  log_gradients: true
 
 # Training options:
 trainer:
@@ -51,5 +51,5 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard"
-  name: "gender_test"
+  name: "debug"
   version: null  

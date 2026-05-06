@@ -86,6 +86,7 @@ class SexDisentangleModule(pl.LightningModule):
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
         self.freeze_ae = freeze_ae
+        self.log_gradients = log_gradients
 
         assert not (freeze_ae and not use_adversarial), "freeze_ae cannot be True if use_adversarial is False."
 
@@ -186,14 +187,13 @@ class SexDisentangleModule(pl.LightningModule):
         # Forward pass
         x_hat, z = self(x)
 
-        # Compute current adversarial weight for GRL
-        adv_loss_weight = self._compute_adv_loss_weight()
-
-        # Compute losses: fool_loss should produce gradients for the AE (via GRL),
-        # recon_loss produces regular reconstruction gradients.
-        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+        fool_logits = self.adv_classifier(grl(z, 1.0), lengths)
         recon_loss = F.mse_loss(x_hat, x)
         fool_loss = F.cross_entropy(fool_logits, sex_labs)
+        
+        opt_ae.zero_grad()
+        self.manual_backward(fool_loss, retain_graph=True)
+        grads_adv = [p.grad.clone() for p in self.ae.parameters() if p.grad is not None]
 
         # Zero AE grads, backprop fool_loss but keep graph for second backward
         opt_ae.zero_grad(set_to_none=True)
