@@ -193,12 +193,12 @@ class SexDisentangleModule(pl.LightningModule):
         
          # Zero AE grads, backprop fool_loss but keep graph for second backward
         opt_ae.zero_grad(set_to_none=True)
-        self.manual_backward(fool_loss, optimizer=opt_ae, retain_graph=True)
+        self.manual_backward(fool_loss retain_graph=True)
         grads_adv = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
 
         # Zero AE grads again, backprop recon_loss
         opt_ae.zero_grad(set_to_none=True)
-        self.manual_backward(recon_loss, optimizer=opt_ae)
+        self.manual_backward(recon_loss)
         grads_recon = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
 
         # Unfreeze adversary to restore training state
