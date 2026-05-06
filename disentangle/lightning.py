@@ -50,7 +50,8 @@ class SexDisentangleModule(pl.LightningModule):
         use_adversarial: bool = True,
         freeze_ae: bool = False,
         lr_scheduling: bool = True,
-        gradient_clip_val: float = 0.0,
+        gradient_clip_val: float = 10.0,
+        log_gradients: bool = False,
     ):
         super().__init__()
 
@@ -85,6 +86,9 @@ class SexDisentangleModule(pl.LightningModule):
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
         self.freeze_ae = freeze_ae
+
+        assert not (freeze_ae and not use_adversarial), "freeze_ae cannot be True if use_adversarial is False."
+
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
             self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
@@ -171,107 +175,130 @@ class SexDisentangleModule(pl.LightningModule):
         """Apply gradient clipping if enabled."""
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
-        
-    def training_step(self, batch, batch_idx):
-        x, sex_labs, lengths = batch
-        
-        if not self.use_adversarial:
-            
-            # AE-only training with automatic optimization
-            x_hat, z = self(x)
-            recon_loss = F.mse_loss(x_hat, x)
-            
-            total_loss = recon_loss  
 
+    def _compute_adv_grad_alignment(self, x, sex_labs, lengths):
+        
+        opt_ae, _ = self.optimizers()
+
+        # AE update step
+        self._freeze(self.adv_classifier)
+        
+        x_hat, z = self(x)
+
+        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+        recon_loss = F.mse_loss(x_hat, x)
+        fool_loss = F.cross_entropy(fool_logits, sex_labs)
+        
+        opt_ae.zero_grad()
+        self.manual_backward(fool_loss)
+        grads_adv = [p.grad.clone() for p in self.ae.parameters() if p.grad is not None]
+
+        opt_ae.zero_grad()
+        self.manual_backward(recon_loss)
+        grads_recon = [p.grad.clone() for p in self.ae.parameters() if p.grad is not None]
+        
+        # Compute cosine similarity between adversarial and reconstruction gradients
+        grad_alignments = []
+        for g_adv, g_recon in zip(grads_adv, grads_recon):
+            if g_adv is not None and g_recon is not None:
+                cos_sim = F.cosine_similarity(g_adv.view(-1), g_recon.view(-1), dim=0)
+                grad_alignments.append(cos_sim.item())
+
+        avg_alignment = sum(grad_alignments) / len(grad_alignments) if grad_alignments else 0.0
+        self.log("adv_recon_grad_alignment", avg_alignment, on_step=True, on_epoch=False, sync_dist=True)
+    
+    def _training_step_ae_only(self, x):
+
+        # AE-only training with automatic optimization
+        x_hat, z = self(x)
+        recon_loss = F.mse_loss(x_hat, x)
+        
+        total_loss = recon_loss  
+
+        # Check for NaN
+        self._check_nan(recon_loss, "train_recon_loss")
+        self._check_nan(total_loss, "train_total_loss")
+        
+        self.log_dict(
+            {
+                "train_recon_loss": recon_loss.detach(),
+                "train_total_loss": total_loss.detach(),
+            },
+            prog_bar=True,
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
+        )
+        
+        return total_loss
+    
+    def _training_step_adversarial(self, x, sex_labs, lengths):
+
+        # Adversarial training with manual optimization
+        opt_ae, opt_adv = self.optimizers()
+        with torch.no_grad():
+            _, z = self(x)
+
+        # Adversary update steps
+        for _ in range(self.adv_update_factor):
+            self.toggle_optimizer(opt_adv)
+            adv_logits = self.adv_classifier(z, lengths)
+            adv_loss = F.cross_entropy(adv_logits, sex_labs)
+            
             # Check for NaN
-            self._check_nan(recon_loss, "train_recon_loss")
-            self._check_nan(total_loss, "train_total_loss")
+            self._check_nan(adv_loss, "train_adv_loss")
             
-            self.log_dict(
-                {
-                    "train_recon_loss": recon_loss.detach(),
-                    "train_total_loss": total_loss.detach(),
-                },
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                sync_dist=True,
-            )
+            opt_adv.zero_grad()
+            self.manual_backward(adv_loss)
             
-            return total_loss
+            # Compute and log gradient norm
+            grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
+            self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
+            
+            # Apply gradient clipping
+            self._clip_gradients(self.adv_classifier.parameters())
+
+            opt_adv.step()
+            opt_adv.zero_grad(set_to_none=True)
+            self.untoggle_optimizer(opt_adv)
         
-        else:
+        adv_acc = self.train_accuracy(adv_logits, sex_labs)
+
+        # AE update step
+        self._freeze(self.adv_classifier)
+        self.toggle_optimizer(opt_ae)
+        x_hat, z = self(x)
+        adv_loss_weight = self._compute_adv_loss_weight()
+        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+
+        recon_loss = F.mse_loss(x_hat, x)
+        fool_loss = F.cross_entropy(fool_logits, sex_labs)
+
+        ae_loss = recon_loss + fool_loss
         
-            # Adversarial training with manual optimization
-            opt_ae, opt_adv = self.optimizers()
-            with torch.no_grad():
-                _, z = self(x)
+        # Check for NaN
+        self._check_nan(recon_loss, "train_recon_loss")
+        self._check_nan(fool_loss, "train_fool_loss")
+        self._check_nan(ae_loss, "train_ae_loss")
 
-            # Adversary update steps
-            for _ in range(self.adv_update_factor):
-                self.toggle_optimizer(opt_adv)
-                adv_logits = self.adv_classifier(z, lengths)
-                adv_loss = F.cross_entropy(adv_logits, sex_labs)
-                
-                # Check for NaN
-                self._check_nan(adv_loss, "train_adv_loss")
-                
-                opt_adv.zero_grad()
-                self.manual_backward(adv_loss)
-                
-                # Compute and log gradient norm
-                grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
-                self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
-                
-                # Apply gradient clipping
-                self._clip_gradients(self.adv_classifier.parameters())
-                
-                opt_adv.step()
-                opt_adv.zero_grad(set_to_none=True)
-                self.untoggle_optimizer(opt_adv)
-            
-            adv_acc = self.train_accuracy(adv_logits, sex_labs)
+        opt_ae.zero_grad()
+        self.manual_backward(ae_loss)
+    
+        # Compute and log gradient norm
+        grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
+        self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
+    
+        # Apply gradient clipping
+        self._clip_gradients(self.ae.parameters())
+    
+        opt_ae.step()
+        self.untoggle_optimizer(opt_ae)
+        self._unfreeze(self.adv_classifier)
 
-            if not self.freeze_ae:
-                # AE update step
-                self._freeze(self.adv_classifier)
-                self.toggle_optimizer(opt_ae)
-                x_hat, z = self(x)
-                adv_loss_weight = self._compute_adv_loss_weight()
-                fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+        if self.log_gradients:
+            self._compute_adv_grad_alignment(x, sex_labs, lengths)
 
-                recon_loss = F.mse_loss(x_hat, x)
-                fool_loss = F.cross_entropy(fool_logits, sex_labs)
-
-                ae_loss = recon_loss + fool_loss
-                
-                # Check for NaN
-                self._check_nan(recon_loss, "train_recon_loss")
-                self._check_nan(fool_loss, "train_fool_loss")
-                self._check_nan(ae_loss, "train_ae_loss")
-
-                opt_ae.zero_grad()
-                self.manual_backward(ae_loss)
-            
-                # Compute and log gradient norm
-                grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
-                self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
-            
-                # Apply gradient clipping
-                self._clip_gradients(self.ae.parameters())
-            
-                opt_ae.step()
-                self.untoggle_optimizer(opt_ae)
-                self._unfreeze(self.adv_classifier)
-
-            else:
-                recon_loss = torch.tensor(0.0)
-                fool_loss = torch.tensor(0.0)
-                ae_loss = torch.tensor(0.0)
-                adv_loss_weight = 0.0
-                
-
-            self.log_dict(
+        self.log_dict(
                 {
                     "train_recon_loss": recon_loss.detach(),
                     "train_adv_loss": adv_loss.detach(),
@@ -287,7 +314,64 @@ class SexDisentangleModule(pl.LightningModule):
                 sync_dist=True,
             )
 
-            return ae_loss.detach()
+        return ae_loss.detach()
+    
+    def _training_step_frozen_ae(self, x, sex_labs, lengths):
+
+        # Adversarial training with manual optimization
+        opt_ae, opt_adv = self.optimizers()
+        with torch.no_grad():
+            _, z = self(x)
+
+        # Adversary update step
+        self.toggle_optimizer(opt_adv)
+        adv_logits = self.adv_classifier(z, lengths)
+        adv_loss = F.cross_entropy(adv_logits, sex_labs)
+        
+        # Check for NaN
+        self._check_nan(adv_loss, "train_adv_loss")
+        
+        opt_adv.zero_grad()
+        self.manual_backward(adv_loss)
+        
+        # Compute and log gradient norm
+        grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
+        self.log("grad_norm_adversarial", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
+        
+        # Apply gradient clipping
+        self._clip_gradients(self.adv_classifier.parameters())
+
+        opt_adv.step()
+        opt_adv.zero_grad(set_to_none=True)
+        self.untoggle_optimizer(opt_adv)
+        
+        adv_acc = self.train_accuracy(adv_logits, sex_labs)
+
+
+        self.log_dict(
+                {
+                    "train_adv_loss": adv_loss.detach(),
+                    "train_adv_acc": adv_acc.detach(),
+                },
+                prog_bar=False,
+                on_step=True,
+                on_epoch=False,
+                sync_dist=True,
+            )
+
+        return adv_loss.detach()
+
+    def training_step(self, batch, batch_idx):
+        x, sex_labs, lengths = batch
+        
+        if not self.use_adversarial:
+            return self._training_step_ae_only(x)
+        
+        elif self.use_adversarial and not self.freeze_ae:
+            return self._training_step_adversarial(x, sex_labs, lengths)
+        
+        elif self.use_adversarial and self.freeze_ae:
+            return self._training_step_frozen_ae(x, sex_labs, lengths)
 
     def validation_step(self, batch, batch_idx):
         x, sex_labs, lengths = batch
