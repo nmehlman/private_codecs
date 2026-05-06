@@ -48,6 +48,7 @@ class SexDisentangleModule(pl.LightningModule):
         normalize_input: bool = True,
         dataset_stats: dict = {},
         use_adversarial: bool = True,
+        freeze_ae: bool = False,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 0.0,
     ):
@@ -83,10 +84,12 @@ class SexDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
-        
+        self.freeze_ae = freeze_ae
         if self.use_adversarial:
             self.train_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
             self.validation_accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        if self.freeze_ae:
+            self._freeze(self.ae)
 
         if self.normalize_input:
             assert self.dataset_stats, "Dataset stats must be provided for normalization."
@@ -229,36 +232,44 @@ class SexDisentangleModule(pl.LightningModule):
             
             adv_acc = self.train_accuracy(adv_logits, sex_labs)
 
-            # AE update step
-            self._freeze(self.adv_classifier)
-            self.toggle_optimizer(opt_ae)
-            x_hat, z = self(x)
-            adv_loss_weight = self._compute_adv_loss_weight()
-            fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+            if not self.freeze_ae:
+                # AE update step
+                self._freeze(self.adv_classifier)
+                self.toggle_optimizer(opt_ae)
+                x_hat, z = self(x)
+                adv_loss_weight = self._compute_adv_loss_weight()
+                fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
 
-            recon_loss = F.mse_loss(x_hat, x)
-            fool_loss = F.cross_entropy(fool_logits, sex_labs)
+                recon_loss = F.mse_loss(x_hat, x)
+                fool_loss = F.cross_entropy(fool_logits, sex_labs)
 
-            ae_loss = recon_loss + fool_loss
-            
-            # Check for NaN
-            self._check_nan(recon_loss, "train_recon_loss")
-            self._check_nan(fool_loss, "train_fool_loss")
-            self._check_nan(ae_loss, "train_ae_loss")
+                ae_loss = recon_loss + fool_loss
+                
+                # Check for NaN
+                self._check_nan(recon_loss, "train_recon_loss")
+                self._check_nan(fool_loss, "train_fool_loss")
+                self._check_nan(ae_loss, "train_ae_loss")
 
-            opt_ae.zero_grad()
-            self.manual_backward(ae_loss)
+                opt_ae.zero_grad()
+                self.manual_backward(ae_loss)
             
-            # Compute and log gradient norm
-            grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
-            self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
+                # Compute and log gradient norm
+                grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
+                self.log("grad_norm_autoencoder", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
             
-            # Apply gradient clipping
-            self._clip_gradients(self.ae.parameters())
+                # Apply gradient clipping
+                self._clip_gradients(self.ae.parameters())
             
-            opt_ae.step()
-            self.untoggle_optimizer(opt_ae)
-            self._unfreeze(self.adv_classifier)
+                opt_ae.step()
+                self.untoggle_optimizer(opt_ae)
+                self._unfreeze(self.adv_classifier)
+
+            else:
+                recon_loss = torch.tensor(0.0)
+                fool_loss = torch.tensor(0.0)
+                ae_loss = torch.tensor(0.0)
+                adv_loss_weight = 0.0
+                
 
             self.log_dict(
                 {
