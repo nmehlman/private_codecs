@@ -177,26 +177,37 @@ class SexDisentangleModule(pl.LightningModule):
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
 
     def _compute_adv_grad_alignment(self, x, sex_labs, lengths):
-        
+        # Get optimizers (expects manual optimization context)
         opt_ae, _ = self.optimizers()
 
-        # AE update step
+        # Temporarily freeze adversary so gradients flow only into the AE
         self._freeze(self.adv_classifier)
-        
+
+        # Forward pass
         x_hat, z = self(x)
 
+        # Compute current adversarial weight for GRL
+        adv_loss_weight = self._compute_adv_loss_weight()
+
+        # Compute losses: fool_loss should produce gradients for the AE (via GRL),
+        # recon_loss produces regular reconstruction gradients.
         fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
         recon_loss = F.mse_loss(x_hat, x)
         fool_loss = F.cross_entropy(fool_logits, sex_labs)
-        
-        opt_ae.zero_grad()
-        self.manual_backward(fool_loss)
-        grads_adv = [p.grad.clone() for p in self.ae.parameters() if p.grad is not None]
 
-        opt_ae.zero_grad()
-        self.manual_backward(recon_loss)
-        grads_recon = [p.grad.clone() for p in self.ae.parameters() if p.grad is not None]
-        
+        # Zero AE grads, backprop fool_loss but keep graph for second backward
+        opt_ae.zero_grad(set_to_none=True)
+        self.manual_backward(fool_loss, optimizer=opt_ae, retain_graph=True)
+        grads_adv = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
+
+        # Zero AE grads again, backprop recon_loss
+        opt_ae.zero_grad(set_to_none=True)
+        self.manual_backward(recon_loss, optimizer=opt_ae)
+        grads_recon = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
+
+        # Unfreeze adversary to restore training state
+        self._unfreeze(self.adv_classifier)
+
         # Compute cosine similarity between adversarial and reconstruction gradients
         grad_alignments = []
         for g_adv, g_recon in zip(grads_adv, grads_recon):
