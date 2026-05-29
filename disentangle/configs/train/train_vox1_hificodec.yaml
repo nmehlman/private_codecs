@@ -30,10 +30,11 @@ lightning:
   weight_decay: 0
   normalize_input: true
   use_adversarial: true
-  lr_scheduling: true
+  lr_scheduling: false
   adv_annealing_steps: 50000 
   ae_warmup_steps: 50000
-  adv_loss_weight: 1.0        
+  adv_loss_weight: 0.1
+  adv_update_factor: 5  
   gradient_clip_val: 100.0
   log_gradients: true
 
