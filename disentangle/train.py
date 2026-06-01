@@ -4,6 +4,7 @@ import argparse
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
 import yaml
 import torch
@@ -206,6 +207,11 @@ if __name__ == "__main__":
         codec_name=codec_name,
         device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
+    ))
+    callbacks.append(ModelCheckpoint(
+        every_n_epochs=10,
+        save_top_k=-1,
+        save_last=True,
     ))
 
     # Make trainer
