@@ -36,6 +36,7 @@ lightning:
   adv_loss_weight: 0.25
   adv_update_factor: 5  
   gradient_clip_val: 100.0
+  adv_weight_decay: 0.001
   log_gradients: true
 
 # Training options:

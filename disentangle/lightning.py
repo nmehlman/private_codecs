@@ -51,6 +51,7 @@ class SexDisentangleModule(pl.LightningModule):
         freeze_ae: bool = False,
         lr_scheduling: bool = True,
         gradient_clip_val: float = 10.0,
+        adv_weight_decay: float = 0,
         log_gradients: bool = False,
     ):
         super().__init__()
@@ -85,6 +86,7 @@ class SexDisentangleModule(pl.LightningModule):
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
+        self.adv_weight_decay = adv_weight_decay
         self.freeze_ae = freeze_ae
         self.log_gradients = log_gradients
 
@@ -436,7 +438,7 @@ class SexDisentangleModule(pl.LightningModule):
         
         else:
             # Adversarial training: return both optimizers and schedulers
-            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate)
+            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate, weight_decay=self.adv_weight_decay)
             
             # Store optimizer names for logging
             self.optimizer_names = ["autoencoder", "adversarial"]
