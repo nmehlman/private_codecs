@@ -81,13 +81,14 @@ class Vox1Dataset(Dataset):
                 speaker_dir = os.path.join(self.data_dir, self.audio_subdir, 'wav', speaker_id)
                 
                 if os.path.isdir(speaker_dir):
-                    for subdir in os.listdir(speaker_dir):
-                        subdir_path = os.path.join(speaker_dir, subdir)
+                    for session_id in os.listdir(speaker_dir):
+                        subdir_path = os.path.join(speaker_dir, session_id)
                         if os.path.isdir(subdir_path):
                             for fname in os.listdir(subdir_path):
                                 if fname.lower().endswith(".wav"):
                                     self.sample_index.append({
                                         "speaker_id": speaker_id,
+                                        "session_id": session_id,
                                         "filename": fname,
                                         "gender": gender,
                                         "path": os.path.join(subdir_path, fname),
