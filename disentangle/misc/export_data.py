@@ -64,7 +64,7 @@ if __name__ == "__main__":
         length = sample["length"]
 
         age_logits, sex_logits, age_sex_embedding = age_sex_model(
-            audio, sr=dataset_sr, lengths=torch.tensor([length]).to(config["device"], return_embeddings=True)
+            audio, sr=dataset_sr, lengths=torch.tensor([length]).to(config["device"]), return_embeddings=True
         )
         
         with torch.no_grad():
