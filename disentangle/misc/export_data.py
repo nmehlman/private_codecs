@@ -89,8 +89,8 @@ if __name__ == "__main__":
                 "codes": codes.cpu(),
                 "quantized_embedding": quantized_embeddings.cpu(),
                 "raw_embedding": embeddings.cpu().squeeze(),
-                "whisper_age_logits": age_logits.cpu().squeeze(),
-                "wavlm_sex_logits": sex_logits.cpu().squeeze(),
+                "age_logits": age_logits.cpu().squeeze(),
+                "sex_logits": sex_logits.cpu().squeeze(),
                 "age_sex_embeddings": age_sex_embedding.detach().cpu().squeeze(),
             }
         
