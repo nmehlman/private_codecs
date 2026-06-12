@@ -62,6 +62,8 @@ if __name__ == "__main__":
         label = sample["gender"]
         filename = sample["filename"]
         length = sample["length"]
+        speaker_id = sample["speaker_id"]
+        session_id = sample.get("session_id", "unknown_session")  # Vox1 has session info, others may not
 
         age_logits, sex_logits, age_sex_embedding = age_sex_model(
             audio, sr=dataset_sr, lengths=torch.tensor([length]).to(config["device"]), return_embeddings=True
@@ -94,6 +96,6 @@ if __name__ == "__main__":
                 "age_sex_embeddings": age_sex_embedding.detach().cpu().squeeze(),
             }
         
-        save_path = os.path.join(save_root, f"{filename}.pkl")
+        save_path = os.path.join(save_root, f"{speaker_id}_{session_id}_{filename}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
