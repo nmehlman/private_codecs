@@ -1,6 +1,7 @@
 from fileinput import filename
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
+from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 import tqdm
 import torch
@@ -20,6 +21,7 @@ CODECS = {
 DATASETS = {
     "expresso": (ExpressoDataset, EXPRESSO_SR),
     "msp_podcast": (MSPPodcastDataset, MSP_SR),
+    "vox1": (Vox1Dataset, VOX1_SR),
 }
 
 if __name__ == "__main__":
