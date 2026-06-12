@@ -59,7 +59,7 @@ if __name__ == "__main__":
     for sample in tqdm.tqdm(dataset, total=len(dataset), desc="Exporting Data"):
         
         audio = sample["audio"].to(config["device"])
-        label = sample["emotion"]
+        label = sample["gender"]
         filename = sample["filename"]
         length = sample["length"]
 
