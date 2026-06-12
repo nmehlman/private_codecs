@@ -13,3 +13,4 @@ num_samples_to_save: 10
 # Dataset options:
 dataset:
   data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/" 
+  audio_subdir: "vox1_test_wav"
