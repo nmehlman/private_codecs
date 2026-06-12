@@ -42,7 +42,7 @@ class EpochInferenceCallback(Callback):
         codec_class, self.codec_sr = CODECS[codec_name]
         self.codec = codec_class(device=self.device)
 
-        # Load emotion classifier
+        # Load age/sex classifier
         self.model = VoxProfileAgeSexModel(device=self.device)
 
     def _resolve_dataloader(self, trainer):
@@ -99,7 +99,7 @@ class EpochInferenceCallback(Callback):
             codes_recon, _ = self.codec.quantize(x)
             audio_codec_only = self.codec.decode(codes_recon)
 
-            # Convert codec-frame lengths to waveform samples for the emotion model
+            # Convert codec-frame lengths to waveform samples for the age/sex model
             codec_seq_len = max(x.size(-1), 1)
             codec_step_to_sample = audio_codec_only.shape[-1] / float(codec_seq_len)
             lengths_codec_sr = torch.clamp(
@@ -112,7 +112,7 @@ class EpochInferenceCallback(Callback):
                 min=1.0,
             ).to(dtype=torch.long)
 
-            # Resample audios to dataset sr for emotion model
+            # Resample audios to dataset sr for age/sex model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
             )

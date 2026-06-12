@@ -13,7 +13,6 @@ input_type: "quantized_embedding"
 dataset:
   dataset_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/"
   codec: "hificodec"
-  emotion_model: "wavlm"
 
 # Dataloader options:
 dataloader:
