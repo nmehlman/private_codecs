@@ -1,9 +1,7 @@
 from fileinput import filename
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
-from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
-from network.foundation import WavLMWrapper, WhisperWrapper, WAVLM_SR, WHISPER_SR
 import tqdm
 import torch
 import argparse
@@ -17,14 +15,11 @@ CODECS = {
     "encodec": (EnCodec, ENCODEC_SR),
     "hificodec": (HifiCodec, HIFICODEC_SR),
     "bigcodec": (BigCodec, BIGCODEC_SR),
-    "wavlm": (WavLMWrapper, WAVLM_SR),
-    "whisper": (WhisperWrapper, WHISPER_SR)
 }
 
 DATASETS = {
     "expresso": (ExpressoDataset, EXPRESSO_SR),
     "msp_podcast": (MSPPodcastDataset, MSP_SR),
-    "vox1": (Vox1Dataset, VOX1_SR),
 }
 
 if __name__ == "__main__":
@@ -54,44 +49,49 @@ if __name__ == "__main__":
     codec_class, codec_sr = CODECS[codec_name]
     dataset_class, dataset_sr = DATASETS[dataset_name]
 
+    age_sex_model = VoxProfileAgeSexModel(device=config["device"])
+
     codec = codec_class(device=config["device"])
     dataset = dataset_class(**config["dataset"])
 
-    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Exporting Data"):
+    for sample in tqdm.tqdm(dataset, total=len(dataset), desc="Exporting Data"):
         
         audio = sample["audio"].to(config["device"])
-        # Handle both emotion and gender labels depending on dataset
-        if dataset_name == "vox1":
-            label = sample["gender"]
-        else:
-            label = sample["emotion"]
+        label = sample["emotion"]
         filename = sample["filename"]
         length = sample["length"]
+
+        age_logits, sex_logits, age_sex_embedding = age_sex_model(
+            audio, sr=dataset_sr, lengths=torch.tensor([length]).to(config["device"], return_embeddings=True)
+        )
         
         with torch.no_grad():
             embeddings = codec.encode(audio, sr=dataset_sr)
-
-        if codec_name in ["encodec", "hificodec", "bigcodec"]:
             codes, quantized_embeddings = codec.quantize(embeddings)
-            codes = codes.squeeze().cpu()
-            quantized_embeddings = quantized_embeddings.squeeze().cpu()
-        else:
-            codes, quantized_embeddings = torch.tensor([-1]), torch.tensor([-1])
+
+        codes = codes.squeeze()
+        quantized_embeddings = quantized_embeddings.squeeze()
 
         # Check for NaN values
         if torch.isnan(embeddings).any() or torch.isnan(codes).any() or torch.isnan(quantized_embeddings).any():
             print(f"Skipping {filename} due to NaN values in codec output")
             continue
         
+        if torch.isnan(age_logits["whisper_logits"]).any() or torch.isnan(sex_logits["wavlm_logits"]).any():
+            print(f"Skipping {filename} due to NaN values in age/sex logits")
+            continue
+
         save_dict = {
                 "filename": filename,
                 "label": label,
-                "codes": codes,
-                "quantized_embedding": quantized_embeddings,
+                "codes": codes.cpu(),
+                "quantized_embedding": quantized_embeddings.cpu(),
                 "raw_embedding": embeddings.cpu().squeeze(),
+                "whisper_age_logits": age_logits["whisper_logits"].cpu().squeeze(),
+                "wavlm_sex_logits": sex_logits["wavlm_logits"].cpu().squeeze(),
+                "age_sex_embeddings": age_sex_embedding.detach().cpu().squeeze(),
             }
-
         
-        save_path = os.path.join(save_root, f"{i}_{filename}.pkl")
+        save_path = os.path.join(save_root, f"{filename}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
