@@ -6,10 +6,13 @@ from pytorch_lightning import Trainer
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
+import torch.utils
+import torch.utils.data
 import yaml
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
+import tqdm
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
@@ -17,7 +20,9 @@ from disentangle.misc.utils import load_dataset_stats
 from disentangle.lightning import SexDisentangleModule
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
+from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path, compute_difference_metric, DATASETS
 
+import pickle
 import torchaudio
 
 torch.set_warn_always(False)
@@ -27,6 +32,59 @@ CODECS = {
     "hificodec": (HifiCodec, HIFICODEC_SR),
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
+
+def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict):
+
+    log_dir = config["log_dir"]
+    save_root = os.path.join(log_dir, "eval")
+    if not os.path.exists(save_root):
+        os.makedirs(save_root)
+    else:
+        raise ValueError(f"Save path {save_root} already exists!")
+
+    codec_name = config["codec_name"]
+    sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis
+    
+    # Load disentanglement model from checkpoint
+    ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
+    pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=dataset_stats, **config["lightning"]).to(config["device"]).eval()
+    
+    # Load VP model (pretrained/fixed)
+    sex_model = VoxProfileAgeSexModel(device=config["device"])
+    
+    # Load speech codec
+    codec_class, codec_sr = CODECS[codec_name]
+    codec = codec_class(device=config["device"])
+
+    # Load dataset
+    dataset_class, dataset_sr = DATASETS[dataset_name]
+    dataset = dataset_class(**config["dataset"]) 
+    
+    # Process each sample
+    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
+        
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config)
+        
+        # Build save dict, optionally excluding audio to save space
+        save_dict = {
+            "filename": results["filename"],
+            "label": results["label"],
+            "sex_logits_raw": results["sex_logits_raw"],
+            "sex_logits_private": results["sex_logits_private"],
+            "sex_logits_codec_only": results["sex_logits_codec_only"],
+            "private_embedding_stats": results["private_embedding_stats"],
+            "difference_metrics": results["difference_metrics"],
+        }
+        
+        if i <= sample_to_save:  # Save audio only for first N samples
+            save_dict["audio_raw"] = results["audio_raw"]
+            save_dict["audio_private"] = results["audio_private"]
+            save_dict["audio_codec_only"] = results["audio_codec_only"]
+        
+        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
+        with open(save_path, "wb") as f:
+            pickle.dump(save_dict, f)
+
 
 
 class EpochInferenceCallback(Callback):

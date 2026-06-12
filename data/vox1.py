@@ -100,6 +100,7 @@ class Vox1Dataset(Dataset):
     def __getitem__(self, idx):
         sample_info = self.sample_index[idx]
         speaker_id = sample_info["speaker_id"]
+        session_id = sample_info["session_id"]
         fname = sample_info["filename"]
         gender = sample_info["gender"]
 
@@ -116,6 +117,7 @@ class Vox1Dataset(Dataset):
         return {
             "audio": audio,
             "speaker": speaker_id,
+            "session": session_id,
             "gender": self.gender_mapping[gender],
             "id": filename_without_ext,
             "length": audio.size(1),
