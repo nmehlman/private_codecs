@@ -79,7 +79,7 @@ if __name__ == "__main__":
             print(f"Skipping {filename} due to NaN values in codec output")
             continue
         
-        if torch.isnan(age_logits["whisper_logits"]).any() or torch.isnan(sex_logits["wavlm_logits"]).any():
+        if torch.isnan(age_logits).any() or torch.isnan(sex_logits).any():
             print(f"Skipping {filename} due to NaN values in age/sex logits")
             continue
 
@@ -89,8 +89,8 @@ if __name__ == "__main__":
                 "codes": codes.cpu(),
                 "quantized_embedding": quantized_embeddings.cpu(),
                 "raw_embedding": embeddings.cpu().squeeze(),
-                "whisper_age_logits": age_logits["whisper_logits"].cpu().squeeze(),
-                "wavlm_sex_logits": sex_logits["wavlm_logits"].cpu().squeeze(),
+                "whisper_age_logits": age_logits.cpu().squeeze(),
+                "wavlm_sex_logits": sex_logits.cpu().squeeze(),
                 "age_sex_embeddings": age_sex_embedding.detach().cpu().squeeze(),
             }
         
