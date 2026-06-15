@@ -25,6 +25,7 @@ dataloader:
 lightning:
   codec_dim: 512
   latent_dim: 64
+  emotion_dim: 256
   enc_channels: [256, 128]
   dec_channels: [256]
   learning_rate: 0.001
@@ -33,12 +34,9 @@ lightning:
   use_adversarial: true
   lr_scheduling: false
   adv_annealing_steps: 50000 
-  ae_warmup_steps: 50000
   adv_loss_weight: 0.25
   adv_update_factor: 5  
   gradient_clip_val: 100.0
-  adv_weight_decay: 0.001
-  log_gradients: true
 
 # Training options:
 trainer:
