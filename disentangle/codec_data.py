@@ -16,17 +16,33 @@ class EmbeddingDataset(Dataset):
             codec: str = "encodec",
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
-            max_length: int = 300
+            max_length: int = 300,
+            speakers: Union[None, list] = None
         ):
 
         self.input_type = input_type
         self.emotion_model = emotion_model
         self.max_length = max_length
+        self.speakers = speakers
         
         data_root = os.path.join(dataset_path, codec, split)
         
         self.data_root = data_root
         self.all_files = sorted(os.listdir(data_root))
+
+        self._filter_by_speaker()
+
+    def _filter_by_speaker(self):
+        if self.speakers is None:
+            return
+        
+        filtered_files = []
+        for filename in self.all_files:
+            speaker_id = filename.split("_")[0]  # Assuming filename format is "speakerID_*.pkl"
+            if speaker_id in self.speakers:
+                filtered_files.append(filename)
+        
+        self.all_files = filtered_files
     
     def __len__(self):
         return len(self.all_files)
@@ -83,6 +99,7 @@ def get_dataloaders(
                     dataset_kwargs: Dict = {},
                     batch_size: int = 16,
                     train_ratio: float = 0.9,
+                    train_val_spks: Union[None, dict] = None,
                     **dataloader_kwargs
                     ) -> Union[ DataLoader, Dict ]:
 
@@ -101,13 +118,17 @@ def get_dataloaders(
         if train_frac < 1.0
     """
 
-    full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
+    if train_val_spks is not None: # Use pre-made train and val split based on speakers
+        train_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spks["train"])
+        val_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spks["val"])
+        
+    else: # Randomly split dataset into train and val
+        full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
-    train_size = int(len(full_dset) * train_ratio)
-    val_size = len(full_dset) - train_size
-    train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+        train_size = int(len(full_dset) * train_ratio)
+        val_size = len(full_dset) - train_size
+        train_dset, val_dset = random_split(full_dset, [train_size, val_size])
     
-   
     train_loader = DataLoader(
                             dataset = train_dset,
                             batch_size = batch_size,

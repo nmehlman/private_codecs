@@ -29,6 +29,7 @@ class Vox1Dataset(Dataset):
         resample_rate: int = 16000,
         gender_mapping: dict = VOX1_GENDER_MAPPING,
         audio_subdir: str = "vox1_dev_wav",
+        speakers: list = None,
     ):
         """
         Dataset for VoxCeleb1 audio files with gender labels.
@@ -49,6 +50,7 @@ class Vox1Dataset(Dataset):
         self.resample_rate = resample_rate
         self.audio_subdir = audio_subdir
         self.gender_mapping = gender_mapping
+        self.speakers = speakers
 
         self.sample_index = []
 
@@ -72,6 +74,9 @@ class Vox1Dataset(Dataset):
             for row in reader:
                 # Adjust column names as needed for your metadata format
                 speaker_id = row.get("VoxCeleb1 ID").strip()
+                if self.speakers and speaker_id not in self.speakers: # Skip speakers not in the provided list
+                    continue
+
                 gender = row.get("Gender").strip().lower()
 
                 if not speaker_id or gender not in self.gender_mapping:

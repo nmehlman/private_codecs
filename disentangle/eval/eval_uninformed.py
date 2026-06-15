@@ -21,7 +21,6 @@ import pickle
 import random
 
 from disentangle.lightning import compute_difference_metric
-from disentangle.eval.conditioning_ablation import compute_conditioning_ablation
 
 def get_stats(tensor):
         return {
@@ -190,9 +189,9 @@ if __name__ == "__main__":
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
     
-    # Load dataset and create dataloader
+    # Load dataset
     dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["dataset"]) # CHANGEME to test when ready
+    dataset = dataset_class(**config["dataset"]) 
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):

@@ -6,8 +6,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
-import torch.utils
-import torch.utils.data
+import json
 import yaml
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -20,7 +19,9 @@ from disentangle.misc.utils import load_dataset_stats
 from disentangle.lightning import SexDisentangleModule
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
-from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path, compute_difference_metric, DATASETS
+from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
+from data.vox1 import Vox1Dataset, VOX1_SR
+
 
 import pickle
 import torchaudio
@@ -33,7 +34,7 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict):
+def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list):
 
     log_dir = config["log_dir"]
     save_root = os.path.join(log_dir, "eval")
@@ -56,9 +57,8 @@ def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict):
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
 
-    # Load dataset
-    dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["dataset"]) 
+    # Load AUDIO validation dataset
+    dataset = Vox1Dataset(**config["dataset"], speakers=val_spks) 
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
@@ -84,8 +84,6 @@ def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict):
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
-
-
 
 class EpochInferenceCallback(Callback):
     """Run inference on one batch after each train epoch and log summary metrics."""
@@ -235,6 +233,13 @@ if __name__ == "__main__":
 
     dataset_kwargs = dict(config["dataset"])
     dataset_kwargs.setdefault("input_type", input_type)
+    
+    # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
+    train_val_spks_split_file = dataset_kwargs.pop("train_val_spks_split_file", None)
+    if train_val_spks_split_file:
+        with open(train_val_spks_split_file, "r") as f:
+            train_val_spks = json.load(f)
+        dataset_kwargs["train_val_spks"] = train_val_spks
 
     dataloaders = get_dataloaders(
                                 dataset_kwargs=dataset_kwargs,

@@ -11,6 +11,7 @@ input_type: "quantized_embedding"
 
 # Dataset options:
 dataset:
+  train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
   dataset_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/"
   codec: "hificodec"
 
