@@ -11,7 +11,7 @@ import yaml
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
-import tqdm
+import json
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
@@ -21,10 +21,11 @@ from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
 from data.vox1 import Vox1Dataset, VOX1_SR
-
+import tqdm
 
 import pickle
 import torchaudio
+import pickle
 
 torch.set_warn_always(False)
 
@@ -34,7 +35,7 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list):
+def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None):
 
     log_dir = config["log_dir"]
     save_root = os.path.join(log_dir, "eval")
@@ -57,13 +58,12 @@ def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, 
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
 
-    # Load AUDIO validation dataset
     dataset = Vox1Dataset(**config["dataset"], speakers=val_spks) 
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config)
+        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, config)
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
@@ -98,7 +98,7 @@ class EpochInferenceCallback(Callback):
         codec_class, self.codec_sr = CODECS[codec_name]
         self.codec = codec_class(device=self.device)
 
-        # Load age/sex classifier
+        # Load classifier
         self.model = VoxProfileAgeSexModel(device=self.device)
 
     def _resolve_dataloader(self, trainer):
@@ -137,7 +137,7 @@ class EpochInferenceCallback(Callback):
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
         
-        x, sex_labs, lengths = batch
+        x, labels, embeddings, lengths = batch
         
         if not isinstance(x, torch.Tensor):
             return
@@ -155,7 +155,7 @@ class EpochInferenceCallback(Callback):
             codes_recon, _ = self.codec.quantize(x)
             audio_codec_only = self.codec.decode(codes_recon)
 
-            # Convert codec-frame lengths to waveform samples for the age/sex model
+            # Convert codec-frame lengths to waveform samples for the model
             codec_seq_len = max(x.size(-1), 1)
             codec_step_to_sample = audio_codec_only.shape[-1] / float(codec_seq_len)
             lengths_codec_sr = torch.clamp(
@@ -168,7 +168,7 @@ class EpochInferenceCallback(Callback):
                 min=1.0,
             ).to(dtype=torch.long)
 
-            # Resample audios to dataset sr for age/sex model
+            # Resample audios to dataset sr for model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
             )
@@ -180,35 +180,35 @@ class EpochInferenceCallback(Callback):
             assert not torch.isnan(audio_private).any(), "NaNs detected in audio_private"
             assert not torch.isnan(audio_codec_only).any(), "NaNs detected in audio_codec_only"
 
-            _, sex_logits_private = self.model(
+            _, logits_private = self.model(
                     audio_private, sr=self.dataset_sr, return_embeddings=False, 
                     lengths=lengths_waveform
                 )
         
-            _, sex_logits_codec_only = self.model(
+            _, logits_codec_only = self.model(
                 audio_codec_only, sr=self.dataset_sr, return_embeddings=False,
                 lengths=lengths_waveform
             )
-        
-        assert not torch.isnan(sex_logits_private).any(), "NaNs detected in sex_logits_private"
-        assert not torch.isnan(sex_logits_codec_only).any(), "NaNs detected in sex_logits_codec_only"
+            
+        assert not torch.isnan(logits_private).any(), "NaNs detected in logits_private"
+        assert not torch.isnan(logits_codec_only).any(), "NaNs detected in logits_codec_only"
         
         if was_training:
             pl_module.train()
 
-        sex_probs_private = torch.softmax(sex_logits_private, dim=-1)
-        sex_probs_codec_only = torch.softmax(sex_logits_codec_only, dim=-1)
+        probs_private = torch.softmax(logits_private, dim=-1)
+        probs_codec_only = torch.softmax(logits_codec_only, dim=-1)
 
-        sex_accuracy_private = (sex_probs_private.argmax(dim=-1) == sex_labs).float().mean()
-        sex_accuracy_codec_only = (sex_probs_codec_only.argmax(dim=-1) == sex_labs).float().mean()
+        accuracy_private = (probs_private.argmax(dim=-1) == labels).float().mean()
+        accuracy_codec_only = (probs_codec_only.argmax(dim=-1) == labels).float().mean()
 
-        sex_entropy_private = - (sex_probs_private * torch.log(sex_probs_private + 1e-8)).sum(dim=-1).mean()
-        sex_entropy_codec_only = - (sex_probs_codec_only * torch.log(sex_probs_codec_only + 1e-8)).sum(dim=-1).mean()
+        entropy_private = - (probs_private * torch.log(probs_private + 1e-8)).sum(dim=-1).mean()
+        entropy_codec_only = - (probs_codec_only * torch.log(probs_codec_only + 1e-8)).sum(dim=-1).mean()
 
-        pl_module.log("epoch_inference/sex_accuracy_private", sex_accuracy_private, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/sex_accuracy_codec_only", sex_accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/sex_entropy_private", sex_entropy_private, on_step=False, on_epoch=True, sync_dist=True)
-        pl_module.log("epoch_inference/sex_entropy_codec_only", sex_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/accuracy_private", accuracy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/accuracy_codec_only", accuracy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/entropy_private", entropy_private, on_step=False, on_epoch=True, sync_dist=True)
+        pl_module.log("epoch_inference/entropy_codec_only", entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")
@@ -239,9 +239,11 @@ if __name__ == "__main__":
     if train_val_spks_split_file:
         with open(train_val_spks_split_file, "r") as f:
             train_val_spks = json.load(f)
-        dataset_kwargs["train_val_spks"] = train_val_spks
+    else:
+        train_val_spks = None
 
     dataloaders = get_dataloaders(
+                                train_val_spk=train_val_spks,
                                 dataset_kwargs=dataset_kwargs,
                                 **config["dataloader"]
                                 )
@@ -291,3 +293,6 @@ if __name__ == "__main__":
             val_dataloaders = dataloaders["val"],
             ckpt_path = config["ckpt_path"]
         )
+    
+    print("Training complete. Running final evaluation")
+    run_eval(config, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)

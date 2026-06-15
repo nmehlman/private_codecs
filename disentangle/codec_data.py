@@ -17,32 +17,20 @@ class EmbeddingDataset(Dataset):
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
             max_length: int = 300,
-            speakers: Union[None, list] = None
+            speakers: list = None
         ):
 
         self.input_type = input_type
         self.emotion_model = emotion_model
         self.max_length = max_length
         self.speakers = speakers
-        
+
         data_root = os.path.join(dataset_path, codec, split)
         
         self.data_root = data_root
         self.all_files = sorted(os.listdir(data_root))
-
-        self._filter_by_speaker()
-
-    def _filter_by_speaker(self):
-        if self.speakers is None:
-            return
-        
-        filtered_files = []
-        for filename in self.all_files:
-            speaker_id = filename.split("_")[0]  # Assuming filename format is "speakerID_*.pkl"
-            if speaker_id in self.speakers:
-                filtered_files.append(filename)
-        
-        self.all_files = filtered_files
+        if self.speakers is not None:
+            self.all_files = [f for f in self.all_files if f.split("_")[0] in self.speakers] # Filter files by speaker ID (assumes filename starts with speaker ID)
     
     def __len__(self):
         return len(self.all_files)
@@ -55,7 +43,8 @@ class EmbeddingDataset(Dataset):
             sample = pickle.load(f)
             
         features = sample[self.input_type]
-        emotion_lab = sample["label"]
+        label = sample["label"]
+        embedding = sample["age_sex_embeddings"]
         
         # Check for NaN values
         if torch.isnan(features).any():
@@ -67,7 +56,7 @@ class EmbeddingDataset(Dataset):
             features = features[:, :self.max_length]
             length = self.max_length
 
-        return (features, emotion_lab, length)
+        return (features, label, embedding, length)
         
     @staticmethod
     def collate_function(batch):
@@ -97,6 +86,7 @@ class EmbeddingDataset(Dataset):
 
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
+                    train_val_spk: list = None,
                     batch_size: int = 16,
                     train_ratio: float = 0.9,
                     train_val_spks: Union[None, dict] = None,
@@ -118,16 +108,16 @@ def get_dataloaders(
         if train_frac < 1.0
     """
 
-    if train_val_spks is not None: # Use pre-made train and val split based on speakers
-        train_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spks["train"])
-        val_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spks["val"])
-        
-    else: # Randomly split dataset into train and val
+    if train_val_spk is not None:
+        train_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spk['train'])
+        val_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spk['val'])
+    else:
         full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
         train_size = int(len(full_dset) * train_ratio)
         val_size = len(full_dset) - train_size
         train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+        
     
     train_loader = DataLoader(
                             dataset = train_dset,
