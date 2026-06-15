@@ -111,6 +111,7 @@ def get_dataloaders(
     if train_val_spk is not None:
         train_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spk['train'])
         val_dset = EmbeddingDataset(**dataset_kwargs, split="train", speakers=train_val_spk['val'])
+        breakpoint()
     else:
         full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
