@@ -43,6 +43,7 @@ class SexDisentangleModule(pl.LightningModule):
         learning_rate: float = 1e-3,
         adv_learning_rate: Optional[float] = None,
         adv_annealing_steps: int = 0,
+        ae_warmup_steps: int = 0,
         adv_update_factor: int = 1,
         weight_decay: float = 0,
         normalize_input: bool = True,
@@ -53,6 +54,7 @@ class SexDisentangleModule(pl.LightningModule):
         tau_cl: float = 0.07,
         tau_st: float = 0.07,
         soft_loss_weight: float = 0.0,
+        log_gradients: bool = False,
     ):
         super().__init__()
 
@@ -84,11 +86,13 @@ class SexDisentangleModule(pl.LightningModule):
         self.adv_loss_weight = adv_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
+        self.ae_warmup_steps = max(0, ae_warmup_steps)
         self.adv_update_factor = adv_update_factor
         self.normalize_input = normalize_input
         self.dataset_stats = dataset_stats
         self.lr_scheduling = lr_scheduling
         self.gradient_clip_val = gradient_clip_val
+        self.log_gradients = log_gradients
 
         assert 0.0 <= soft_loss_weight <= 1.0, "soft_loss_weight must be between 0 and 1"
         self.soft_loss_weight = soft_loss_weight
@@ -128,12 +132,18 @@ class SexDisentangleModule(pl.LightningModule):
         return x * std + mean
 
     def _compute_adv_loss_weight(self):
-        # Apply sine annealing for adversarial loss weight
-        if self.global_step < self.adv_annealing_steps:
-            frac = self.global_step / self.adv_annealing_steps
-            return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
-        else:
-            return self.adv_loss_weight
+        # Keep adversarial signal off while AE warmup is active.
+        if self.global_step < self.ae_warmup_steps:
+            return 0.0
+
+        # Apply sine annealing after warmup.
+        if self.adv_annealing_steps > 0:
+            anneal_step = self.global_step - self.ae_warmup_steps
+            if anneal_step < self.adv_annealing_steps:
+                frac = anneal_step / self.adv_annealing_steps
+                return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
+
+        return self.adv_loss_weight
 
     def _scheduler_t_max(self) -> int:
         max_epochs = self.trainer.max_epochs
@@ -175,6 +185,42 @@ class SexDisentangleModule(pl.LightningModule):
         """Apply gradient clipping if enabled."""
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
+
+    def _compute_adv_grad_alignment(self, x, emotion_embs, lengths):
+        # Compare AE gradients induced by fooling loss vs reconstruction loss.
+        opt_ae, _ = self.optimizers()  # type: ignore
+        adv_classifier = self._get_adv_classifier()
+
+        # Temporarily freeze adversary so gradients only flow to AE.
+        self._freeze(adv_classifier)
+
+        x_hat, z = self(x)
+        fool_logits = adv_classifier(grl(z, 1.0), emotion_embs, lengths)
+        recon_loss = F.mse_loss(x_hat, x)
+        fool_loss = self.compute_contrastive_loss(fool_logits, emotion_embs)
+
+        # Backprop fool loss and snapshot AE grads.
+        opt_ae.zero_grad(set_to_none=True)
+        self.manual_backward(fool_loss, retain_graph=True)
+        grads_adv = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
+
+        # Backprop recon loss and snapshot AE grads.
+        opt_ae.zero_grad(set_to_none=True)
+        self.manual_backward(recon_loss)
+        grads_recon = [p.grad.clone() if p.grad is not None else None for p in self.ae.parameters()]
+
+        # Clear temporary grads and restore adversary trainability.
+        opt_ae.zero_grad(set_to_none=True)
+        self._unfreeze(adv_classifier)
+
+        grad_alignments = []
+        for g_adv, g_recon in zip(grads_adv, grads_recon):
+            if g_adv is not None and g_recon is not None:
+                cos_sim = F.cosine_similarity(g_adv.view(-1), g_recon.view(-1), dim=0)
+                grad_alignments.append(cos_sim.item())
+
+        avg_alignment = sum(grad_alignments) / len(grad_alignments) if grad_alignments else 0.0
+        self.log("adv_recon_grad_alignment", avg_alignment, on_step=True, on_epoch=False, sync_dist=True)
         
     def compute_contrastive_loss(self, adv_logits, emotion_embs):
         
@@ -290,6 +336,9 @@ class SexDisentangleModule(pl.LightningModule):
             self.untoggle_optimizer(opt_ae)
             self._unfreeze(adv_classifier)
 
+            if self.log_gradients:
+                self._compute_adv_grad_alignment(x, emotion_embs, lengths)
+
             self.log_dict(
                 {
                     "train_recon_loss": recon_loss.detach(),
@@ -298,6 +347,7 @@ class SexDisentangleModule(pl.LightningModule):
                     "train_adv_acc": adv_acc.detach(),
                     "train_fool_loss": fool_loss.detach(),
                     "train_total_loss": ae_loss.detach(),
+                    "train_adv_loss_weight": float(adv_loss_weight),
                 },
                 prog_bar=False,
                 on_step=True,
