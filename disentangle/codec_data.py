@@ -63,7 +63,8 @@ class EmbeddingDataset(Dataset):
         
         features = [item[0] for item in batch]
         labs = torch.tensor([item[1] for item in batch], dtype=torch.long)
-        lengths = torch.tensor([item[2] for item in batch], dtype=torch.long)
+        embedding = torch.stack([item[2] for item in batch], dim=0)
+        lengths = torch.tensor([item[3] for item in batch], dtype=torch.long)
         max_len = max(feats.shape[-1] for feats in features)
         
         padded_features = []
@@ -81,7 +82,7 @@ class EmbeddingDataset(Dataset):
         batch_features = torch.stack(padded_features, dim=0)
         
 
-        return batch_features, labs, lengths
+        return batch_features, labs, embedding, lengths
     
 
 def get_dataloaders(
@@ -89,7 +90,6 @@ def get_dataloaders(
                     train_val_spk: list = None,
                     batch_size: int = 16,
                     train_ratio: float = 0.9,
-                    train_val_spks: Union[None, dict] = None,
                     **dataloader_kwargs
                     ) -> Union[ DataLoader, Dict ]:
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     print(f"\nComputing statistics for quantized embeddings...")
     quantized_features_list = []
     for batch in quantized_dataloader:
-        features, _, lengths = batch
+        features, _, _, lengths = batch
         # Collect only the non-padded part of each sample
         for i, length in enumerate(lengths):
             quantized_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)
