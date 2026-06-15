@@ -192,7 +192,7 @@ class SexDisentangleModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         
-        x, emotion_embs, _, lengths = batch
+        x, _, emotion_embs, lengths = batch
         B = x.size(0) # batch size
         
         if not self.use_adversarial:
@@ -308,7 +308,7 @@ class SexDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, emotion_embs, _, lengths = batch
+        x, _, emotion_embs, lengths = batch
         x_hat, z = self(x)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(
