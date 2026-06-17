@@ -236,11 +236,8 @@ if __name__ == "__main__":
     codec_name = config["codec_name"]
     input_type = config["input_type"]
 
-    dataset_kwargs = dict(config["dataset"])
-    dataset_kwargs.setdefault("input_type", input_type)
-    
     # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
-    train_val_spks_split_file = dataset_kwargs.pop("train_val_spks_split_file", None)
+    train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
     if train_val_spks_split_file:
         with open(train_val_spks_split_file, "r") as f:
             train_val_spks = json.load(f)
@@ -249,7 +246,7 @@ if __name__ == "__main__":
 
     dataloaders = get_dataloaders(
                                 train_val_spk=train_val_spks,
-                                dataset_kwargs=dataset_kwargs,
+                                dataset_kwargs=config["dataset"],
                                 **config["dataloader"]
                                 )
     assert isinstance(dataloaders, dict), "Expected train/val dataloader dictionary."
