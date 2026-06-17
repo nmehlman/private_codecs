@@ -36,7 +36,7 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None) -> str:
+def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None, device='cuda') -> str:
 
     save_root = os.path.join(log_dir, "eval")
     if not os.path.exists(save_root):
@@ -49,14 +49,14 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     
     # Load disentanglement model from checkpoint
     ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
-    pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=dataset_stats, **config["lightning"]).to(config["device"]).eval()
+    pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=dataset_stats, **config["lightning"]).to(device).eval()
     
     # Load VP model (pretrained/fixed)
-    sex_model = VoxProfileAgeSexModel(device=config["device"])
+    sex_model = VoxProfileAgeSexModel(device=device).eval()
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
-    codec = codec_class(device=config["device"])
+    codec = codec_class(device=device)
 
     dataset = Vox1Dataset(**config["dataset"], speakers=val_spks) 
     
