@@ -117,9 +117,12 @@ def _resolve_checkpoint_path(log_dir, ckpt_name):
             candidates.append((epoch, step, filename))
 
     if not candidates:
-        raise FileNotFoundError(
-            f"No checkpoints matching 'epoch=<int>-step=<int>.ckpt' in {checkpoints_dir}"
-        )
+        if 'last.ckpt' in os.listdir(checkpoints_dir):
+            return os.path.join(checkpoints_dir, 'last.ckpt')
+        else:
+            raise FileNotFoundError(
+                f"No checkpoints found in {checkpoints_dir}"
+            )
 
     _, _, latest_filename = max(candidates, key=lambda item: (item[0], item[1]))
     return os.path.join(checkpoints_dir, latest_filename)
