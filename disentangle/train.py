@@ -295,7 +295,7 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
-    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"][:2] if train_val_spks else None) # DEBUG
+    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
     
     parsed_results = parse_results(results_dir) # Compute average metrics
     for key, value in parsed_results.items():
