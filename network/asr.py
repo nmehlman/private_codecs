@@ -1,6 +1,5 @@
 import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-from datasets import load_dataset
 
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -24,8 +23,7 @@ pipe = pipeline(
     device=device,
 )
 
-dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation")
-sample = dataset[0]["audio"]
+sample = torch.randn(16000 * 5)  # 5 seconds of random noise at 16kHz
 
 result = pipe(sample)
 print(result["text"])
