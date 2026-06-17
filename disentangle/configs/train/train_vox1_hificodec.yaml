@@ -18,7 +18,7 @@ dataset:
 
 audio_eval_dataset:
   data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/" 
-  audio_subdir: "vox1_test_wav"
+  audio_subdir: "vox1_dev_wav"
 
 # Dataloader options:
 dataloader:
