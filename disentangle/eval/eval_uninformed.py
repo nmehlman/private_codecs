@@ -7,18 +7,20 @@ from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
+from network.asr import WhisperASR
 
 import argparse
 import os
 import re
-import pytorch_lightning as pl
-import yaml
+import pytorch_lightning as pl # type: ignore
+import yaml  # type: ignore
 
-import tqdm
-import torch
-import torchaudio
+import tqdm  # type: ignore
+import torch  # type: ignore
+import torchaudio  # type: ignore
 import pickle
 import random
+from jiwer import wer  # type: ignore
 
 from disentangle.lightning import compute_difference_metric
 
@@ -31,7 +33,7 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=None):
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=None):
     
     """Process a single sample."""
     
@@ -79,8 +81,19 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, dev
         _, sex_logits_codec_only = sex_model(
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
             lengths=torch.tensor([length]).to(device)
-        )    
-    
+        )  
+        
+    if asr_model is not None:  
+        transcription_raw = asr_model.transcribe(audio.cpu(), sr=dataset_sr)
+        transcription_private = asr_model.transcribe(audio_private.cpu(), sr=dataset_sr)
+        transcription_codec_only = asr_model.transcribe(audio_codec_only.cpu(), sr=dataset_sr)
+        reference_text = sample.get("transcript", sample.get("text", sample.get("reference", "")))
+        wer_raw = wer(reference_text, transcription_raw) if reference_text else None
+        wer_private = wer(reference_text, transcription_private) if reference_text else None
+        wer_codec_only = wer(reference_text, transcription_codec_only) if reference_text else None
+        
+        
+        
     # Build results dict
     results = {
         "filename": filename,
@@ -94,6 +107,12 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, dev
         "audio_private": audio_private.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
+        "transcription_raw": transcription_raw if asr_model is not None else None,
+        "transcription_private": transcription_private if asr_model is not None else None,
+        "transcription_codec_only": transcription_codec_only if asr_model is not None else None,
+        "wer_raw": wer_raw if asr_model is not None else None,
+        "wer_private": wer_private if asr_model is not None else None,
+        "wer_codec_only": wer_codec_only if asr_model is not None else None,
     }
     
     return results
@@ -188,6 +207,9 @@ if __name__ == "__main__":
     # Load VP model (pretrained/fixed)
     sex_model = VoxProfileAgeSexModel(device=config["device"])
     
+    # Load ASR model
+    asr_model = WhisperASR(device=config["device"])
+    
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
@@ -199,7 +221,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config["device"])
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model, config["device"])
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
