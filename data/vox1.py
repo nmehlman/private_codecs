@@ -179,13 +179,7 @@ if __name__ == "__main__":
         data_dir="/project2/shrikann_35/nmehlman/data/svpp-data/vox1",
         metadata_file="vox1_meta.csv",
         resample_rate=16000,
-        speakers=['id11033',
-                'id11034',
-                'id11035',
-                'id11036',
-                'id11037',
-                'id11038',
-                'id11039',]
+        speakers=train_val_spks["val"]
     )
 
     data_loader = torch.utils.data.DataLoader(
