@@ -52,7 +52,7 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=dataset_stats, **config["lightning"]).to(device).eval()
     
     # Load VP model (pretrained/fixed)
-    sex_model = VoxProfileAgeSexModel(device=device).eval()
+    sex_model = VoxProfileAgeSexModel(device=device)
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
