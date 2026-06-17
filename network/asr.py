@@ -60,7 +60,7 @@ pipe = pipeline(
     device=device,
 )
 
-sample = torch.randn(16000 * 5)  # 5 seconds of random noise at 16kHz
+sample = torch.randn(16000 * 5).numpy()  # 5 seconds of random noise at 16kHz
 
 result = pipe(sample)
 print(result["text"])
