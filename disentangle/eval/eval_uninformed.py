@@ -31,11 +31,11 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config):
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=None):
     
     """Process a single sample."""
     
-    audio = sample["audio"].to(config["device"])
+    audio = sample["audio"].to(device)
     label = sample["gender"]
     filename = sample["filename"]
     length = sample["length"]
@@ -43,7 +43,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
     # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
-            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(config["device"])
+            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
         )
     
     # Encode audio with codec
@@ -73,12 +73,12 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, con
     with torch.no_grad():
         _, sex_logits_private = sex_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, 
-                lengths=torch.tensor([length]).to(config["device"])
+                lengths=torch.tensor([length]).to(device)
             )
        
         _, sex_logits_codec_only = sex_model(
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
-            lengths=torch.tensor([length]).to(config["device"])
+            lengths=torch.tensor([length]).to(device)
         )    
     
     # Build results dict
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config)
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, config["device"])
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {

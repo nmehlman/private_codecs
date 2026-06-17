@@ -63,7 +63,7 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, config)
+        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, device)
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
