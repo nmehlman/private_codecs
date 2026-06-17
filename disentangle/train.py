@@ -36,9 +36,8 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None) -> str:
+def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None) -> str:
 
-    log_dir = config["log_dir"]
     save_root = os.path.join(log_dir, "eval")
     if not os.path.exists(save_root):
         os.makedirs(save_root)
@@ -268,8 +267,9 @@ if __name__ == "__main__":
     logger = TensorBoardLogger(**config["tensorboard"])
 
     # Save config to tensorboard directory
-    config_save_path = os.path.join(logger.log_dir, "config.yaml")
-    os.makedirs(logger.log_dir, exist_ok=True)
+    log_dir = logger.log_dir
+    config_save_path = os.path.join(log_dir, "config.yaml")
+    os.makedirs(log_dir, exist_ok=True)
     with open(config_save_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
@@ -301,7 +301,7 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
-    results_dir = run_eval(config, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
+    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
     
     parsed_results = parse_results(results_dir) # Compute average metrics
     for key, value in parsed_results.items():
