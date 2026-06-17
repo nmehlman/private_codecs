@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torchaudio
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
