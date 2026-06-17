@@ -20,6 +20,7 @@ from disentangle.lightning import SexDisentangleModule
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
+from disentangle.misc.parse_results import parse_results
 from data.vox1 import Vox1Dataset, VOX1_SR
 import tqdm
 
@@ -35,7 +36,7 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None):
+def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None) -> str:
 
     log_dir = config["log_dir"]
     save_root = os.path.join(log_dir, "eval")
@@ -61,6 +62,9 @@ def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, 
     dataset = Vox1Dataset(**config["dataset"], speakers=val_spks) 
     
     # Process each sample
+    raw_sex_acc = []
+    private_sex_acc = []
+    codec_only_sex_acc = []
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
         results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, config)
@@ -84,6 +88,8 @@ def run_eval(config: dict, pl_model: SexDisentangleModule, dataset_stats: dict, 
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
+            
+    return save_root
 
 class EpochInferenceCallback(Callback):
     """Run inference on one batch after each train epoch and log summary metrics."""
@@ -295,4 +301,8 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
-    run_eval(config, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
+    results_dir = run_eval(config, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
+    
+    parsed_results = parse_results(results_dir) # Compute average metrics
+    for key, value in parsed_results.items():
+        print(f"{key}: {value:.4f}")

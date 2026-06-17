@@ -4,28 +4,13 @@ import torch
 import pickle
 import matplotlib.pyplot as plt
 
-# save_dict = {
-#             "filename": results["filename"],
-#             "label": results["label"],
-#             "sex_logits_raw": results["sex_logits_raw"],
-#             "sex_logits_private": results["sex_logits_private"],
-#             "sex_logits_codec_only": results["sex_logits_codec_only"],
-#             "private_embedding_stats": results["private_embedding_stats"],
-#             "difference_metrics": results["difference_metrics"],
-#         }
-
-if __name__ == "__main__":
-    
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--results_dir", type=str, required=True, help="Directory containing the results .pt files")
-    args = parser.parse_args()
+def parse_results(results_dir):
     
     # Load all results
-    results_files = [f for f in os.listdir(args.results_dir) if f.endswith(".pkl")]
+    results_files = [f for f in os.listdir(results_dir) if f.endswith(".pkl")]
     all_results = []
     for f in results_files:
-        results_path = os.path.join(args.results_dir, f)
+        results_path = os.path.join(results_dir, f)
         results = pickle.load(open(results_path, "rb"))
         all_results.append(results)
     
@@ -34,19 +19,31 @@ if __name__ == "__main__":
     accuracy_private = np.mean([r["label"] == np.argmax(r["sex_logits_private"]) for r in all_results])
     accuracy_codec_only = np.mean([r["label"] == np.argmax(r["sex_logits_codec_only"]) for r in all_results])
 
-    print(f"Raw Accuracy: {accuracy_raw:.4f}")
-    print(f"Private Accuracy: {accuracy_private:.4f}")
-    print(f"Codec-Only Accuracy: {accuracy_codec_only:.4f}")
-
     def compute_entropy(logits):
         probs = torch.softmax(logits, dim=-1)
         entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=-1).item()
         return entropy
     
-    entropies_raw = [compute_entropy(r["sex_logits_raw"]) for r in all_results]
-    entropies_private = [compute_entropy(r["sex_logits_private"]) for r in all_results]
-    entropies_codec_only = [compute_entropy(r["sex_logits_codec_only"]) for r in all_results]
+    entropies_raw = np.mean([compute_entropy(r["sex_logits_raw"]) for r in all_results])
+    entropies_private = np.mean([compute_entropy(r["sex_logits_private"]) for r in all_results])
+    entropies_codec_only = np.mean([compute_entropy(r["sex_logits_codec_only"]) for r in all_results])
 
-    print(f"Average Entropy - Raw: {np.mean(entropies_raw):.4f} +/- {np.std(entropies_raw):.4f}")
-    print(f"Average Entropy - Private: {np.mean(entropies_private):.4f} +/- {np.std(entropies_private):.4f}")
-    print(f"Average Entropy - Codec-Only: {np.mean(entropies_codec_only):.4f} +/- {np.std(entropies_codec_only):.4f}")
+    return {
+        "accuracy_raw": accuracy_raw,
+        "accuracy_private": accuracy_private,
+        "accuracy_codec_only": accuracy_codec_only,
+        "entropy_raw": entropies_raw,
+        "entropy_private": entropies_private,
+        "entropy_codec_only": entropies_codec_only
+        }
+
+if __name__ == "__main__":
+    
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--results_dir", type=str, required=True, help="Directory containing the results .pt files")
+    args = parser.parse_args()
+    
+    parsed_results = parse_results(args.results_dir)
+    for key, value in parsed_results.items():
+        print(f"{key}: {value:.4f}")
