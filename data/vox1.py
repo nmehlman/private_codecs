@@ -79,9 +79,6 @@ class Vox1Dataset(Dataset):
 
                 gender = row.get("Gender").strip().lower()
 
-                if not speaker_id or gender not in self.gender_mapping:
-                    continue
-
                 # Find audio files for this speaker
                 speaker_dir = os.path.join(self.data_dir, self.audio_subdir, 'wav', speaker_id)
                 
