@@ -61,9 +61,6 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     dataset = Vox1Dataset(**config["audio_eval_dataset"], speakers=val_spks) 
     
     # Process each sample
-    raw_sex_acc = []
-    private_sex_acc = []
-    codec_only_sex_acc = []
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
         results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, config)
