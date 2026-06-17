@@ -58,7 +58,7 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=device)
 
-    dataset = Vox1Dataset(**config["dataset"], speakers=val_spks) 
+    dataset = Vox1Dataset(**config["audio_eval_dataset"], speakers=val_spks) 
     
     # Process each sample
     raw_sex_acc = []
