@@ -167,6 +167,12 @@ class Vox1Dataset(Dataset):
 if __name__ == "__main__":
 
     import tqdm
+    import json
+    
+    train_val_spks_split_file = '/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json'
+    
+    with open(train_val_spks_split_file, "r") as f:
+        train_val_spks = json.load(f)
 
     # Example usage
     dataset = Vox1Dataset(
