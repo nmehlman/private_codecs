@@ -82,7 +82,7 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
             save_dict["audio_private"] = results["audio_private"]
             save_dict["audio_codec_only"] = results["audio_codec_only"]
         
-        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
+        save_path = os.path.join(save_root, f"{i}_{results['filename'].replace('.wav', '')}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
             
