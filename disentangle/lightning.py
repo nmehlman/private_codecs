@@ -2,6 +2,7 @@ from math import sin
 
 import pytorch_lightning as pl
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Function
 from torchmetrics import Accuracy
@@ -73,7 +74,7 @@ class SexDisentangleModule(pl.LightningModule):
                 **adversarial_kwargs,
             )
         else:
-            self.adv_classifier = None
+            self.adv_classifier = nn.Identity()  # Placeholder when adversarial training is not used
 
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay

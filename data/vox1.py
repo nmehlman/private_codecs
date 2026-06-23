@@ -4,6 +4,7 @@ import os
 import torchaudio
 import csv
 import tqdm
+from typing import List, Union
 
 VOX1_SR = 16000  # VoxCeleb1 is typically 16kHz
 
@@ -29,7 +30,7 @@ class Vox1Dataset(Dataset):
         resample_rate: int = 16000,
         gender_mapping: dict = VOX1_GENDER_MAPPING,
         audio_subdir: str = "vox1_dev_wav",
-        speakers: list = None,
+        speakers: Union[List[str], None] = None,
     ):
         """
         Dataset for VoxCeleb1 audio files with gender labels.
