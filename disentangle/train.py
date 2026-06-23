@@ -140,7 +140,7 @@ class EpochInferenceCallback(Callback):
         if not isinstance(batch, (tuple, list)) or len(batch) == 0:
             return
         
-        x, sex_labs, lengths = batch
+        x, sex_labs, _, lengths = batch
         
         if not isinstance(x, torch.Tensor):
             return
