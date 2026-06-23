@@ -29,6 +29,7 @@ class Vox1Dataset(Dataset):
         resample_rate: int = 16000,
         gender_mapping: dict = VOX1_GENDER_MAPPING,
         audio_subdir: str = "vox1_dev_wav",
+        speakers: list = None,
     ):
         """
         Dataset for VoxCeleb1 audio files with gender labels.
@@ -49,6 +50,7 @@ class Vox1Dataset(Dataset):
         self.resample_rate = resample_rate
         self.audio_subdir = audio_subdir
         self.gender_mapping = gender_mapping
+        self.speakers = speakers
 
         self.sample_index = []
 
@@ -72,22 +74,23 @@ class Vox1Dataset(Dataset):
             for row in reader:
                 # Adjust column names as needed for your metadata format
                 speaker_id = row.get("VoxCeleb1 ID").strip()
-                gender = row.get("Gender").strip().lower()
-
-                if not speaker_id or gender not in self.gender_mapping:
+                if self.speakers and speaker_id not in self.speakers: # Skip speakers not in the provided list
                     continue
+
+                gender = row.get("Gender").strip().lower()
 
                 # Find audio files for this speaker
                 speaker_dir = os.path.join(self.data_dir, self.audio_subdir, 'wav', speaker_id)
                 
                 if os.path.isdir(speaker_dir):
-                    for subdir in os.listdir(speaker_dir):
-                        subdir_path = os.path.join(speaker_dir, subdir)
+                    for session_id in os.listdir(speaker_dir):
+                        subdir_path = os.path.join(speaker_dir, session_id)
                         if os.path.isdir(subdir_path):
                             for fname in os.listdir(subdir_path):
                                 if fname.lower().endswith(".wav"):
                                     self.sample_index.append({
                                         "speaker_id": speaker_id,
+                                        "session_id": session_id,
                                         "filename": fname,
                                         "gender": gender,
                                         "path": os.path.join(subdir_path, fname),
@@ -99,6 +102,7 @@ class Vox1Dataset(Dataset):
     def __getitem__(self, idx):
         sample_info = self.sample_index[idx]
         speaker_id = sample_info["speaker_id"]
+        session_id = sample_info["session_id"]
         fname = sample_info["filename"]
         gender = sample_info["gender"]
 
@@ -115,6 +119,7 @@ class Vox1Dataset(Dataset):
         return {
             "audio": audio,
             "speaker": speaker_id,
+            "session": session_id,
             "gender": self.gender_mapping[gender],
             "id": filename_without_ext,
             "length": audio.size(1),
@@ -159,12 +164,19 @@ class Vox1Dataset(Dataset):
 if __name__ == "__main__":
 
     import tqdm
+    import json
+    
+    train_val_spks_split_file = '/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json'
+    
+    with open(train_val_spks_split_file, "r") as f:
+        train_val_spks = json.load(f)
 
     # Example usage
     dataset = Vox1Dataset(
         data_dir="/project2/shrikann_35/nmehlman/data/svpp-data/vox1",
         metadata_file="vox1_meta.csv",
         resample_rate=16000,
+        speakers=train_val_spks["val"]
     )
 
     data_loader = torch.utils.data.DataLoader(
