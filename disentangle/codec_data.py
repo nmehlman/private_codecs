@@ -16,17 +16,21 @@ class EmbeddingDataset(Dataset):
             codec: str = "encodec",
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
-            max_length: int = 300
+            max_length: int = 300,
+            speakers: list = None
         ):
 
         self.input_type = input_type
         self.emotion_model = emotion_model
         self.max_length = max_length
-        
+        self.speakers = speakers
+
         data_root = os.path.join(dataset_path, codec, split)
         
         self.data_root = data_root
         self.all_files = sorted(os.listdir(data_root))
+        if self.speakers is not None:
+            self.all_files = [f for f in self.all_files if f.split("_")[0] in self.speakers] # Filter files by speaker ID (assumes filename starts with speaker ID)
     
     def __len__(self):
         return len(self.all_files)
@@ -39,7 +43,8 @@ class EmbeddingDataset(Dataset):
             sample = pickle.load(f)
             
         features = sample[self.input_type]
-        emotion_lab = sample["label"]
+        label = sample["label"]
+        embedding = sample["age_sex_embeddings"]
         
         # Check for NaN values
         if torch.isnan(features).any():
@@ -51,14 +56,15 @@ class EmbeddingDataset(Dataset):
             features = features[:, :self.max_length]
             length = self.max_length
 
-        return (features, emotion_lab, length)
+        return (features, label, embedding, length)
         
     @staticmethod
     def collate_function(batch):
         
         features = [item[0] for item in batch]
         labs = torch.tensor([item[1] for item in batch], dtype=torch.long)
-        lengths = torch.tensor([item[2] for item in batch], dtype=torch.long)
+        embedding = torch.stack([item[2] for item in batch], dim=0)
+        lengths = torch.tensor([item[3] for item in batch], dtype=torch.long)
         max_len = max(feats.shape[-1] for feats in features)
         
         padded_features = []
@@ -76,11 +82,12 @@ class EmbeddingDataset(Dataset):
         batch_features = torch.stack(padded_features, dim=0)
         
 
-        return batch_features, labs, lengths
+        return batch_features, labs, embedding, lengths
     
 
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
+                    train_val_spk: list = None,
                     batch_size: int = 16,
                     train_ratio: float = 0.9,
                     **dataloader_kwargs
@@ -101,13 +108,17 @@ def get_dataloaders(
         if train_frac < 1.0
     """
 
-    full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
+    if train_val_spk is not None:
+        train_dset = EmbeddingDataset(**dataset_kwargs, speakers=train_val_spk['train'])
+        val_dset = EmbeddingDataset(**dataset_kwargs, speakers=train_val_spk['val'])
+    else:
+        full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
-    train_size = int(len(full_dset) * train_ratio)
-    val_size = len(full_dset) - train_size
-    train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+        train_size = int(len(full_dset) * train_ratio)
+        val_size = len(full_dset) - train_size
+        train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+        
     
-   
     train_loader = DataLoader(
                             dataset = train_dset,
                             batch_size = batch_size,
@@ -151,7 +162,7 @@ if __name__ == "__main__":
     print(f"\nComputing statistics for quantized embeddings...")
     quantized_features_list = []
     for batch in quantized_dataloader:
-        features, _, lengths = batch
+        features, _, _, lengths = batch
         # Collect only the non-padded part of each sample
         for i, length in enumerate(lengths):
             quantized_features_list.append(features[i, :, :length])  # (codec_dim, seq_len)

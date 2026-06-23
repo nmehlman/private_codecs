@@ -6,10 +6,13 @@ from pytorch_lightning import Trainer
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
+import json
 import yaml
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
+import json
+from typing import Union
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
@@ -17,8 +20,14 @@ from disentangle.misc.utils import load_dataset_stats
 from disentangle.lightning import SexDisentangleModule
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
+from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
+from disentangle.misc.parse_results import parse_results
+from data.vox1 import Vox1Dataset, VOX1_SR
+import tqdm
 
+import pickle
 import torchaudio
+import pickle
 
 torch.set_warn_always(False)
 
@@ -28,6 +37,56 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
+def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: Union[list, None] = None, device='cuda') -> str:
+
+    save_root = os.path.join(log_dir, "eval")
+    if not os.path.exists(save_root):
+        os.makedirs(save_root)
+    else:
+        raise ValueError(f"Save path {save_root} already exists!")
+
+    codec_name = config["codec_name"]
+    sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis
+    
+    # Load disentanglement model from checkpoint
+    ckpt_path = _resolve_checkpoint_path(log_dir, config.get("ckpt_name", None))
+    pl_model = SexDisentangleModule.load_from_checkpoint(ckpt_path, dataset_stats=dataset_stats, **config["lightning"]).to(device).eval()
+    
+    # Load VP model (pretrained/fixed)
+    sex_model = VoxProfileAgeSexModel(device=device)
+    
+    # Load speech codec
+    codec_class, codec_sr = CODECS[codec_name]
+    codec = codec_class(device=device)
+
+    dataset = Vox1Dataset(**config["audio_eval_dataset"], speakers=val_spks) 
+    
+    # Process each sample
+    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
+        
+        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, device=device)
+        
+        # Build save dict, optionally excluding audio to save space
+        save_dict = {
+            "filename": results["filename"],
+            "label": results["label"],
+            "sex_logits_raw": results["sex_logits_raw"],
+            "sex_logits_private": results["sex_logits_private"],
+            "sex_logits_codec_only": results["sex_logits_codec_only"],
+            "private_embedding_stats": results["private_embedding_stats"],
+            "difference_metrics": results["difference_metrics"],
+        }
+        
+        if i <= sample_to_save:  # Save audio only for first N samples
+            save_dict["audio_raw"] = results["audio_raw"]
+            save_dict["audio_private"] = results["audio_private"]
+            save_dict["audio_codec_only"] = results["audio_codec_only"]
+        
+        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
+        with open(save_path, "wb") as f:
+            pickle.dump(save_dict, f)
+            
+    return save_root
 
 class EpochInferenceCallback(Callback):
     """Run inference on one batch after each train epoch and log summary metrics."""
@@ -42,7 +101,7 @@ class EpochInferenceCallback(Callback):
         codec_class, self.codec_sr = CODECS[codec_name]
         self.codec = codec_class(device=self.device)
 
-        # Load emotion classifier
+        # Load classifier
         self.model = VoxProfileAgeSexModel(device=self.device)
 
     def _resolve_dataloader(self, trainer):
@@ -99,7 +158,7 @@ class EpochInferenceCallback(Callback):
             codes_recon, _ = self.codec.quantize(x)
             audio_codec_only = self.codec.decode(codes_recon)
 
-            # Convert codec-frame lengths to waveform samples for the emotion model
+            # Convert codec-frame lengths to waveform samples for the model
             codec_seq_len = max(x.size(-1), 1)
             codec_step_to_sample = audio_codec_only.shape[-1] / float(codec_seq_len)
             lengths_codec_sr = torch.clamp(
@@ -112,7 +171,7 @@ class EpochInferenceCallback(Callback):
                 min=1.0,
             ).to(dtype=torch.long)
 
-            # Resample audios to dataset sr for emotion model
+            # Resample audios to dataset sr for model
             audio_private = torchaudio.functional.resample(
                 audio_private, orig_freq=self.codec_sr, new_freq=self.dataset_sr
             )
@@ -175,11 +234,17 @@ if __name__ == "__main__":
     codec_name = config["codec_name"]
     input_type = config["input_type"]
 
-    dataset_kwargs = dict(config["dataset"])
-    dataset_kwargs.setdefault("input_type", input_type)
+    # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
+    train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
+    if train_val_spks_split_file:
+        with open(train_val_spks_split_file, "r") as f:
+            train_val_spks = json.load(f)
+    else:
+        train_val_spks = None
 
     dataloaders = get_dataloaders(
-                                dataset_kwargs=dataset_kwargs,
+                                train_val_spk=train_val_spks,
+                                dataset_kwargs=config["dataset"],
                                 **config["dataloader"]
                                 )
     assert isinstance(dataloaders, dict), "Expected train/val dataloader dictionary."
@@ -197,8 +262,9 @@ if __name__ == "__main__":
     logger = TensorBoardLogger(**config["tensorboard"])
 
     # Save config to tensorboard directory
-    config_save_path = os.path.join(logger.log_dir, "config.yaml")
-    os.makedirs(logger.log_dir, exist_ok=True)
+    log_dir = logger.log_dir
+    config_save_path = os.path.join(log_dir, "config.yaml")
+    os.makedirs(log_dir, exist_ok=True)
     with open(config_save_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
@@ -228,3 +294,12 @@ if __name__ == "__main__":
             val_dataloaders = dataloaders["val"],
             ckpt_path = config["ckpt_path"]
         )
+    
+    print("Training complete. Running final evaluation")
+    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
+    
+    parsed_results = parse_results(results_dir) # Compute average metrics
+    for key, value in parsed_results.items():
+        print(f"{key}: {value:.4f}")
+
+    json.dump(parsed_results, open(os.path.join(results_dir, "final_results.json"), "w"), indent=4)
