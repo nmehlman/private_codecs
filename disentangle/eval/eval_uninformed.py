@@ -208,7 +208,7 @@ if __name__ == "__main__":
     sex_model = VoxProfileAgeSexModel(device=config["device"])
     
     # Load ASR model
-    asr_model = WhisperASR(device=config["device"])
+    #asr_model = WhisperASR(device=config["device"])
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model, config["device"])
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=config["device"])
         
         # Build save dict, optionally excluding audio to save space
         save_dict = {
