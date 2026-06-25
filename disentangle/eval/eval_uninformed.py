@@ -233,7 +233,7 @@ if __name__ == "__main__":
         results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=config["device"])
         
         # Build save dict, optionally excluding audio to save space
-        save_dict = {
+        save_dict = { # TODO add trasncriptions and WERs to save_dict if asr_model is not None
             "filename": results["filename"],
             "label": results["label"],
             "sex_logits_raw": results["sex_logits_raw"],
