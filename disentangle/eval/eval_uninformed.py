@@ -19,7 +19,7 @@ import tqdm  # type: ignore
 import torch  # type: ignore
 import torchaudio  # type: ignore
 import pickle
-import random
+import json
 from jiwer import wer  # type: ignore
 
 from disentangle.lightning import compute_difference_metric
@@ -213,10 +213,19 @@ if __name__ == "__main__":
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
+
+
+    # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
+    train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
+    if train_val_spks_split_file:
+        with open(train_val_spks_split_file, "r") as f:
+            train_val_spks = json.load(f)
+    else:
+        train_val_spks = None
     
     # Load dataset
     dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["dataset"]) 
+    dataset = dataset_class(**config["dataset"], speakers=train_val_spks['val'] if train_val_spks else None) 
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
