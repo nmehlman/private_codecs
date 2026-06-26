@@ -33,8 +33,8 @@ lightning:
   weight_decay: 0
 random_seed: 42
 tensorboard:
-  name: debug
-  save_dir: /project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard
+  name: repro-4
+  save_dir: /project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender
   version: null
 trainer:
   accelerator: gpu
