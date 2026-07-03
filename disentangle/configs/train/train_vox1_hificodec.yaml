@@ -1,6 +1,5 @@
 # Basic training configuration for Expresso with Encodec features
 
----
 random_seed: 42
 ckpt_path: null
 gpus: "0"
