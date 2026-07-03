@@ -169,6 +169,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = config["gpus"]
     if config["random_seed"]:
         pl.seed_everything(config["random_seed"], workers=True)
+        torch.random.manual_seed(config["random_seed"])
 
     # Setup dataloaders
     dataset_name = config["dataset_name"]
