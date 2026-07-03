@@ -57,5 +57,5 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender"
-  name: "standard_gender" 
+  name: "repro" 
   version: null  
