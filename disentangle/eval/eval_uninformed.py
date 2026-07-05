@@ -7,7 +7,7 @@ from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
-#from network.asr import WhisperASR
+from network.asr import WhisperASR
 
 import argparse
 import os
@@ -91,8 +91,9 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
         wer_raw = wer(reference_text, transcription_raw) if reference_text else None
         wer_private = wer(reference_text, transcription_private) if reference_text else None
         wer_codec_only = wer(reference_text, transcription_codec_only) if reference_text else None
-        
-        
+    else:
+        transcription_raw, transcription_private, transcription_codec_only = None, None, None
+        wer_raw, wer_private, wer_codec_only = None, None, None
         
     # Build results dict
     results = {
@@ -208,7 +209,7 @@ if __name__ == "__main__":
     sex_model = VoxProfileAgeSexModel(device=config["device"])
     
     # Load ASR model
-    #asr_model = WhisperASR(device=config["device"])
+    asr_model = WhisperASR(device=config["device"])
     
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
