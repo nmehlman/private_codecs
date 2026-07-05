@@ -5,7 +5,7 @@ input_type: "quantized_embedding"
 device: "cuda"
 gpus: "0"
 
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/gender_test/version_3/"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/gender_test/version_1/"
 ckpt_name: null
 num_samples_to_save: 10
 
@@ -14,4 +14,4 @@ num_samples_to_save: 10
 dataset:
   train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
   data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/" 
-  audio_subdir: "vox1_dev_wav"
+  audio_subdir: "vox1_test_wav"
