@@ -19,6 +19,11 @@ def parse_results(results_dir):
     accuracy_private = np.mean([r["label"] == np.argmax(r["sex_logits_private"]) for r in all_results])
     accuracy_codec_only = np.mean([r["label"] == np.argmax(r["sex_logits_codec_only"]) for r in all_results])
 
+    if all("asr" in r for r in all_results):
+        wer_raw = np.mean([r["asr"]["wer_raw"] for r in all_results if r["asr"]["wer_raw"] is not None])
+        wer_private = np.mean([r["asr"]["wer_private"] for r in all_results if r["asr"]["wer_private"] is not None])
+        wer_codec_only = np.mean([r["asr"]["wer_codec_only"] for r in all_results if r["asr"]["wer_codec_only"] is not None])
+
     def compute_entropy(logits):
         probs = torch.softmax(logits, dim=-1)
         entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=-1).item()

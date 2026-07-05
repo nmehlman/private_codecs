@@ -246,7 +246,6 @@ if __name__ == "__main__":
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
             "asr": results.get("asr", None)
-
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
