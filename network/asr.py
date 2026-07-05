@@ -50,7 +50,7 @@ class WhisperASR(nn.Module):
         audio_list = [x[i].cpu().numpy() for i in range(x.shape[0])]
         
         # Process entire batch at once using pipeline's batch processing
-        results = self.pipe(audio_list, batch_size=len(audio_list))
+        results = self.pipe(audio_list, batch_size=len(audio_list), generate_kwargs={"language": "en"})
         
         # Extract transcriptions from results
         transcriptions = [result["text"] for result in results]
