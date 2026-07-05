@@ -20,11 +20,13 @@ def parse_results(results_dir):
     accuracy_codec_only = np.mean([r["label"] == np.argmax(r["sex_logits_codec_only"]) for r in all_results])
 
     if all((r["asr"] is not None) for r in all_results):
-        wer_raw = np.mean([r["asr"]["wer_raw"] for r in all_results if r["asr"]["wer_raw"] is not None])
-        wer_private = np.mean([r["asr"]["wer_private"] for r in all_results if r["asr"]["wer_private"] is not None])
-        wer_codec_only = np.mean([r["asr"]["wer_codec_only"] for r in all_results if r["asr"]["wer_codec_only"] is not None])
+        wer_raw_ref = np.mean([r["asr"]["wer_raw_ref"] for r in all_results if r["asr"]["wer_raw_ref"] is not None])
+        wer_private_ref = np.mean([r["asr"]["wer_private_ref"] for r in all_results if r["asr"]["wer_private_ref"] is not None])
+        wer_codec_only_ref = np.mean([r["asr"]["wer_codec_only_ref"] for r in all_results if r["asr"]["wer_codec_only_ref"] is not None])
+        wer_private_raw = np.mean([r["asr"]["wer_private_raw"] for r in all_results if r["asr"]["wer_private_raw"] is not None])
+        wer_private_codec_only = np.mean([r["asr"]["wer_private_codec_only"] for r in all_results if r["asr"]["wer_private_codec_only"] is not None])
     else:
-        wer_raw, wer_private, wer_codec_only = None, None, None
+        wer_raw_ref, wer_private_ref, wer_codec_only_ref, wer_private_raw, wer_private_codec_only = None, None, None, None, None
 
     def compute_entropy(logits):
         probs = torch.softmax(logits, dim=-1)
@@ -42,9 +44,11 @@ def parse_results(results_dir):
         "entropy_raw": entropies_raw,
         "entropy_private": entropies_private,
         "entropy_codec_only": entropies_codec_only,
-        "wer_raw": wer_raw if wer_raw is not None else None,
-        "wer_private": wer_private if wer_private is not None else None,
-        "wer_codec_only": wer_codec_only if wer_codec_only is not None else None
+        "wer_raw_ref": wer_raw_ref if wer_raw_ref is not None else None,
+        "wer_private_ref": wer_private_ref if wer_private_ref is not None else None,
+        "wer_codec_only_ref": wer_codec_only_ref if wer_codec_only_ref is not None else None,
+        "wer_private_raw": wer_private_raw if wer_private_raw is not None else None,
+        "wer_private_codec_only": wer_private_codec_only if wer_private_codec_only is not None else None
     }
 
 if __name__ == "__main__":
