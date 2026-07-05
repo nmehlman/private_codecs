@@ -235,7 +235,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=config["device"])
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=asr_model, device=config["device"])
         
         # Build save dict, optionally excluding audio to save space
         save_dict = { 
