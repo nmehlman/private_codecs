@@ -23,6 +23,8 @@ def parse_results(results_dir):
         wer_raw = np.mean([r["asr"]["wer_raw"] for r in all_results if r["asr"]["wer_raw"] is not None])
         wer_private = np.mean([r["asr"]["wer_private"] for r in all_results if r["asr"]["wer_private"] is not None])
         wer_codec_only = np.mean([r["asr"]["wer_codec_only"] for r in all_results if r["asr"]["wer_codec_only"] is not None])
+    else:
+        wer_raw, wer_private, wer_codec_only = None, None, None
 
     def compute_entropy(logits):
         probs = torch.softmax(logits, dim=-1)
@@ -39,8 +41,11 @@ def parse_results(results_dir):
         "accuracy_codec_only": accuracy_codec_only,
         "entropy_raw": entropies_raw,
         "entropy_private": entropies_private,
-        "entropy_codec_only": entropies_codec_only
-        }
+        "entropy_codec_only": entropies_codec_only,
+        "wer_raw": wer_raw if wer_raw is not None else None,
+        "wer_private": wer_private if wer_private is not None else None,
+        "wer_codec_only": wer_codec_only if wer_codec_only is not None else None
+    }
 
 if __name__ == "__main__":
     
