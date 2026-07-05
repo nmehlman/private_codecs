@@ -300,6 +300,9 @@ if __name__ == "__main__":
     
     parsed_results = parse_results(results_dir) # Compute average metrics
     for key, value in parsed_results.items():
-        print(f"{key}: {value:.4f}")
+        if value is None:
+            print(f"{key}: None")
+        else:
+            print(f"{key}: {value:.4f}")
 
     json.dump(parsed_results, open(os.path.join(results_dir, "final_results.json"), "w"), indent=4)
