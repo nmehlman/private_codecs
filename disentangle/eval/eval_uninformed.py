@@ -253,7 +253,7 @@ if __name__ == "__main__":
     
     # Create dataloader for batch processing
     batch_size = config.get("batch_size", 4)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, collate_fn=dataset_class.collate_function)
     
     # Process each batch
     sample_idx = 0
