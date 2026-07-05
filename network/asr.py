@@ -28,17 +28,35 @@ class WhisperASR(nn.Module):
         )
 
     def transcribe(self, x: torch.Tensor, sr: int):
-        """Return per-sample transcriptions of shape (L,)."""
+        """Return per-sample transcriptions.
         
-        if x.ndim == 2:
-            assert x.shape[0] == 1, "Currently only supports single-sample batches"
+        Args:
+            x: Audio tensor of shape (batch_size, num_samples) or (num_samples,)
+            sr: Sample rate of the audio
+            
+        Returns:
+            List of transcription strings for each sample in the batch, or single string if input is 1D
+        """
+        
+        is_single_sample = x.ndim == 1
+        
+        if x.ndim == 1:
+            x = x.unsqueeze(0)  # Add batch dimension
         
         if sr != self.sample_rate:
             x = torchaudio.functional.resample(x, orig_freq=sr, new_freq=self.sample_rate)
         
-        x = x.squeeze().numpy()
-        results = self.pipe(x)
-        return results["text"]
+        # Convert to numpy list for batch processing
+        audio_list = [x[i].cpu().numpy() for i in range(x.shape[0])]
+        
+        # Process entire batch at once using pipeline's batch processing
+        results = self.pipe(audio_list, batch_size=len(audio_list))
+        
+        # Extract transcriptions from results
+        transcriptions = [result["text"] for result in results]
+        
+        # Return single string if input was 1D, otherwise return list
+        return transcriptions[0] if is_single_sample else transcriptions
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32

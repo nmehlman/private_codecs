@@ -18,6 +18,7 @@ import yaml  # type: ignore
 import tqdm  # type: ignore
 import torch  # type: ignore
 import torchaudio  # type: ignore
+from torch.utils.data import DataLoader
 import pickle
 import json
 from jiwer import wer  # type: ignore
@@ -33,24 +34,27 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=None):
+def process_batch(batch, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=None):
     
-    """Process a single sample."""
+    """Process a batch of samples."""
     
-    audio = sample["audio"].to(device)
-    label = sample["gender"]
-    filename = sample["filename"]
-    length = sample["length"]
+    audios = batch["audio"].to(device)
+    labels = batch["gender"]
+    filenames = batch["filename"]
+    lengths = batch["length"].to(device)
+    
+    batch_size = audios.shape[0]
+    results_list = []
     
     # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
-            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
+            audios, sr=dataset_sr, return_embeddings=False, lengths=lengths
         )
     
     # Encode audio with codec
     with torch.no_grad():
-        embedding_raw = codec.encode(audio, sr=dataset_sr)
+        embedding_raw = codec.encode(audios, sr=dataset_sr)
         codes_raw, quantized_embedding_raw = codec.quantize(embedding_raw)
     
     with torch.no_grad():
@@ -75,56 +79,67 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
     with torch.no_grad():
         _, sex_logits_private = sex_model(
                 audio_private, sr=dataset_sr, return_embeddings=False, 
-                lengths=torch.tensor([length]).to(device)
+                lengths=lengths
             )
        
         _, sex_logits_codec_only = sex_model(
             audio_codec_only, sr=dataset_sr, return_embeddings=False,
-            lengths=torch.tensor([length]).to(device)
+            lengths=lengths
         )  
-        
-    if asr_model is not None:  
-        transcription_raw = asr_model.transcribe(audio.cpu(), sr=dataset_sr)
-        transcription_private = asr_model.transcribe(audio_private.cpu(), sr=dataset_sr)
-        transcription_codec_only = asr_model.transcribe(audio_codec_only.cpu(), sr=dataset_sr)
-        reference_text = sample.get("transcript", sample.get("text", sample.get("reference", "")))
-        wer_raw_ref = wer(reference_text, transcription_raw) if reference_text else None
-        wer_private_ref = wer(reference_text, transcription_private) if reference_text else None
-        wer_codec_only_ref = wer(reference_text, transcription_codec_only) if reference_text else None
-        wer_private_raw = wer(transcription_raw, transcription_private) if transcription_raw and transcription_private else None
-        wer_private_codec_only = wer(transcription_codec_only, transcription_private) if transcription_codec_only and transcription_private else None
-    else:
-        transcription_raw, transcription_private, transcription_codec_only = None, None, None
-        wer_raw_ref, wer_private_ref, wer_codec_only_ref, wer_private_raw, wer_private_codec_only = None, None, None, None, None
-        
-    # Build results dict
-    results = {
-        "filename": filename,
-        "label": label,
-        "sex_logits_raw": sex_logits_raw.cpu().squeeze(),
-        "sex_logits_private": sex_logits_private.cpu().squeeze(),
-        "sex_logits_codec_only": sex_logits_codec_only.cpu().squeeze(),
-        "raw_embedding_stats": get_stats(quantized_embedding_raw),
-        "private_embedding_stats": get_stats(embedding_private_quantized),
-        "audio_raw": audio.cpu().squeeze(),
-        "audio_private": audio_private.cpu().squeeze(),
-        "audio_codec_only": audio_codec_only.cpu().squeeze(),
-        "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
-    }
-
-    if asr_model is not None:
-        results["asr"] = { 
-            "transcription_raw": transcription_raw,
-            "transcription_private": transcription_private,
-            "transcription_codec_only": transcription_codec_only,
-            "wer_raw_ref": wer_raw_ref,
-            "wer_private_ref": wer_private_ref,
-            "wer_codec_only_ref": wer_codec_only_ref,
-            "wer_private_raw": wer_private_raw,
-            "wer_private_codec_only": wer_private_codec_only   
-        }
     
-    return results
+    # Process ASR if provided (batch processing)
+    transcriptions_raw = None
+    transcriptions_private = None
+    transcriptions_codec_only = None
+    
+    if asr_model is not None:
+        transcriptions_raw = asr_model.transcribe(audios, sr=dataset_sr)
+        transcriptions_private = asr_model.transcribe(audio_private, sr=dataset_sr)
+        transcriptions_codec_only = asr_model.transcribe(audio_codec_only, sr=dataset_sr)
+    
+    # Build results list for each sample in batch
+    for i in range(batch_size):
+        # Get reference text if available
+        if asr_model is not None:
+            reference_text = batch.get("transcript", batch.get("text", batch.get("reference", [""] * batch_size)))[i] if isinstance(batch.get("transcript", batch.get("text", batch.get("reference", []))), list) else ""
+            wer_raw_ref = wer(reference_text, transcriptions_raw[i]) if reference_text else None
+            wer_private_ref = wer(reference_text, transcriptions_private[i]) if reference_text else None
+            wer_codec_only_ref = wer(reference_text, transcriptions_codec_only[i]) if reference_text else None
+            wer_private_raw = wer(transcriptions_raw[i], transcriptions_private[i]) if transcriptions_raw[i] and transcriptions_private[i] else None
+            wer_private_codec_only = wer(transcriptions_codec_only[i], transcriptions_private[i]) if transcriptions_codec_only[i] and transcriptions_private[i] else None
+        else:
+            wer_raw_ref = wer_private_ref = wer_codec_only_ref = wer_private_raw = wer_private_codec_only = None
+        
+        # Build results dict
+        results = {
+            "filename": filenames[i],
+            "label": labels[i],
+            "sex_logits_raw": sex_logits_raw[i].cpu(),
+            "sex_logits_private": sex_logits_private[i].cpu(),
+            "sex_logits_codec_only": sex_logits_codec_only[i].cpu(),
+            "raw_embedding_stats": get_stats(quantized_embedding_raw[i]),
+            "private_embedding_stats": get_stats(embedding_private_quantized[i]),
+            "audio_raw": audios[i].cpu(),
+            "audio_private": audio_private[i].cpu(),
+            "audio_codec_only": audio_codec_only[i].cpu(),
+            "difference_metrics": compute_difference_metric(quantized_embedding_raw[i:i+1], embedding_private_quantized[i:i+1]),
+        }
+        
+        if asr_model is not None:
+            results["asr"] = { 
+                "transcription_raw": transcriptions_raw[i],
+                "transcription_private": transcriptions_private[i],
+                "transcription_codec_only": transcriptions_codec_only[i],
+                "wer_raw_ref": wer_raw_ref,
+                "wer_private_ref": wer_private_ref,
+                "wer_codec_only_ref": wer_codec_only_ref,
+                "wer_private_raw": wer_private_raw,
+                "wer_private_codec_only": wer_private_codec_only   
+            }
+        
+        results_list.append(results)
+    
+    return results_list
 
 
 def _resolve_checkpoint_path(log_dir, ckpt_name):
@@ -236,30 +251,39 @@ if __name__ == "__main__":
     dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["dataset"], speakers=train_val_spks['val'] if train_val_spks else None) 
     
-    # Process each sample
-    for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
+    # Create dataloader for batch processing
+    batch_size = config.get("batch_size", 4)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    
+    # Process each batch
+    sample_idx = 0
+    for batch in tqdm.tqdm(dataloader, desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=asr_model, device=config["device"])
+        results_list = process_batch(batch, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=asr_model, device=config["device"])
         
-        # Build save dict, optionally excluding audio to save space
-        save_dict = { 
-            "label": results["label"],
-            "sex_logits_raw": results["sex_logits_raw"],
-            "sex_logits_private": results["sex_logits_private"],
-            "sex_logits_codec_only": results["sex_logits_codec_only"],
-            "private_embedding_stats": results["private_embedding_stats"],
-            "difference_metrics": results["difference_metrics"],
-            "asr": results.get("asr", None)
-        }
-        
-        if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
-            save_dict["audio_raw"] = results["audio_raw"]
-            save_dict["audio_private"] = results["audio_private"]
-            save_dict["audio_codec_only"] = results["audio_codec_only"]
-        
-        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
-        with open(save_path, "wb") as f:
-            pickle.dump(save_dict, f)
+        # Save each result in the batch
+        for results in results_list:
+            # Build save dict, optionally excluding audio to save space
+            save_dict = { 
+                "label": results["label"],
+                "sex_logits_raw": results["sex_logits_raw"],
+                "sex_logits_private": results["sex_logits_private"],
+                "sex_logits_codec_only": results["sex_logits_codec_only"],
+                "private_embedding_stats": results["private_embedding_stats"],
+                "difference_metrics": results["difference_metrics"],
+                "asr": results.get("asr", None)
+            }
+            
+            if sample_idx <= config["num_samples_to_save"]:  # Save audio only for first N samples
+                save_dict["audio_raw"] = results["audio_raw"]
+                save_dict["audio_private"] = results["audio_private"]
+                save_dict["audio_codec_only"] = results["audio_codec_only"]
+            
+            save_path = os.path.join(save_root, f"{sample_idx}_{results['filename']}.pkl")
+            with open(save_path, "wb") as f:
+                pickle.dump(save_dict, f)
+            
+            sample_idx += 1
 
     
     
