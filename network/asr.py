@@ -1,15 +1,16 @@
 import torch
 import torch.nn as nn
 import torchaudio
+import os
+import librosa
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 class WhisperASR(nn.Module):
-    def __init__(self, device="cpu", pretrain_model="openai/whisper-large-v3", language='en'):
+    def __init__(self, device="cpu", pretrain_model="openai/whisper-large-v3"):
         
         super().__init__()
         self.device = device
         self.pretrain_model = pretrain_model
-        self.language = language
 
         torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
@@ -39,37 +40,29 @@ class WhisperASR(nn.Module):
         
         x = x.squeeze().numpy()
         
-        kwargs = {}
-        if self.language is not None:
-            kwargs["generate_kwargs"] = {"language": self.language}
-        
-        results = self.pipe(x, **kwargs)
+        results = self.pipe(x, generate_kwargs={"language": "en"})
         return results["text"]
     
+    def transcribe_dir(self, audio_dir: str, save_path: str):
+        """Transcribe all audio files in a directory and save results to a text file."""
+        
+        audio_files = [os.path.join(audio_dir, f) for f in os.listdir(audio_dir) if f.endswith((".wav", ".flac", ".mp3"))]
+        
+        def data_generator(file_paths):
+            for path in file_paths:
+                array, sr = librosa.load(path, sr=self.sample_rate)  # librosa resamples internally
+                yield {"raw": array, "sampling_rate": self.sample_rate}
+
+        results = []
+        for out in self.pipe(data_generator(audio_files), batch_size=8, generate_kwargs={"language": "en"}):
+            results.append(out["text"])
+
+        with open(save_path, "w") as f:
+            for file_path, transcription in zip(audio_files, results):
+                f.write(f"{os.path.basename(file_path)}\t{transcription}\n")
+
 if __name__ == "__main__":
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
-    model_id = "openai/whisper-large-v3"
-
-    model = AutoModelForSpeechSeq2Seq.from_pretrained(
-        model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
-    )
-    model.to(device)
-
-    processor = AutoProcessor.from_pretrained(model_id)
-
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=model,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-        torch_dtype=torch_dtype,
-        device=device,
-    )
-
-    sample = torch.randn(16000 * 5).numpy()  # 5 seconds of random noise at 16kHz
-
-    result = pipe(sample)
-    print(result["text"])
+    model = WhisperASR(device=device, pretrain_model="openai/whisper-large-v3")
+    model.transcribe_dir('/home1/nmehlman/private_codecs/private_codecs/disentangle/eval/test_audio', "./test_transcriptions.txt")

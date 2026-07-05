@@ -7,7 +7,6 @@ from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from data.vox1 import Vox1Dataset, VOX1_SR
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
-from network.asr import WhisperASR
 
 import argparse
 import os
@@ -33,7 +32,7 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=None):
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=None):
     
     """Process a single sample."""
     
@@ -83,20 +82,6 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
             lengths=torch.tensor([length]).to(device)
         )  
         
-    if asr_model is not None:  
-        transcription_raw = asr_model.transcribe(audio.cpu(), sr=dataset_sr)
-        transcription_private = asr_model.transcribe(audio_private.cpu(), sr=dataset_sr)
-        transcription_codec_only = asr_model.transcribe(audio_codec_only.cpu(), sr=dataset_sr)
-        reference_text = sample.get("transcript", sample.get("text", sample.get("reference", "")))
-        wer_raw_ref = wer(reference_text, transcription_raw) if reference_text else None
-        wer_private_ref = wer(reference_text, transcription_private) if reference_text else None
-        wer_codec_only_ref = wer(reference_text, transcription_codec_only) if reference_text else None
-        wer_private_raw = wer(transcription_raw, transcription_private) if transcription_raw and transcription_private else None
-        wer_private_codec_only = wer(transcription_codec_only, transcription_private) if transcription_codec_only and transcription_private else None
-    else:
-        transcription_raw, transcription_private, transcription_codec_only = None, None, None
-        wer_raw_ref, wer_private_ref, wer_codec_only_ref, wer_private_raw, wer_private_codec_only = None, None, None, None, None
-        
     # Build results dict
     results = {
         "filename": filename,
@@ -112,18 +97,6 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
     }
 
-    if asr_model is not None:
-        results["asr"] = { 
-            "transcription_raw": transcription_raw,
-            "transcription_private": transcription_private,
-            "transcription_codec_only": transcription_codec_only,
-            "wer_raw_ref": wer_raw_ref,
-            "wer_private_ref": wer_private_ref,
-            "wer_codec_only_ref": wer_codec_only_ref,
-            "wer_private_raw": wer_private_raw,
-            "wer_private_codec_only": wer_private_codec_only   
-        }
-    
     return results
 
 
@@ -216,9 +189,6 @@ if __name__ == "__main__":
     # Load VP model (pretrained/fixed)
     sex_model = VoxProfileAgeSexModel(device=config["device"])
     
-    # Load ASR model
-    asr_model = WhisperASR(device=config["device"])
-    
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
@@ -239,7 +209,7 @@ if __name__ == "__main__":
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=asr_model, device=config["device"])
+        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=config["device"])
         
         # Build save dict, optionally excluding audio to save space
         save_dict = { 
@@ -249,7 +219,6 @@ if __name__ == "__main__":
             "sex_logits_codec_only": results["sex_logits_codec_only"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
-            "asr": results.get("asr", None)
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
