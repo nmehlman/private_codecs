@@ -117,9 +117,9 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
             "transcription_raw": transcription_raw,
             "transcription_private": transcription_private,
             "transcription_codec_only": transcription_codec_only,
-            "wer_raw": wer_raw_ref,
-            "wer_private": wer_private_ref,
-            "wer_codec_only": wer_codec_only_ref,
+            "wer_raw_ref": wer_raw_ref,
+            "wer_private_ref": wer_private_ref,
+            "wer_codec_only_ref": wer_codec_only_ref,
             "wer_private_raw": wer_private_raw,
             "wer_private_codec_only": wer_private_codec_only   
         }
