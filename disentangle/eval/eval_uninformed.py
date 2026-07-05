@@ -108,13 +108,17 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
         "audio_private": audio_private.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
-        "transcription_raw": transcription_raw if asr_model is not None else None,
-        "transcription_private": transcription_private if asr_model is not None else None,
-        "transcription_codec_only": transcription_codec_only if asr_model is not None else None,
-        "wer_raw": wer_raw if asr_model is not None else None,
-        "wer_private": wer_private if asr_model is not None else None,
-        "wer_codec_only": wer_codec_only if asr_model is not None else None,
     }
+
+    if asr_model is not None:
+        results["asr"] = { 
+            "transcription_raw": transcription_raw,
+            "transcription_private": transcription_private,
+            "transcription_codec_only": transcription_codec_only,
+            "wer_raw": wer_raw,
+            "wer_private": wer_private,
+            "wer_codec_only": wer_codec_only
+        }
     
     return results
 
@@ -234,14 +238,15 @@ if __name__ == "__main__":
         results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=config["device"])
         
         # Build save dict, optionally excluding audio to save space
-        save_dict = { # TODO add trasncriptions and WERs to save_dict if asr_model is not None
-            "filename": results["filename"],
+        save_dict = { 
             "label": results["label"],
             "sex_logits_raw": results["sex_logits_raw"],
             "sex_logits_private": results["sex_logits_private"],
             "sex_logits_codec_only": results["sex_logits_codec_only"],
             "private_embedding_stats": results["private_embedding_stats"],
             "difference_metrics": results["difference_metrics"],
+            "asr": results.get("asr", None)
+
         }
         
         if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
