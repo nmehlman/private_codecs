@@ -18,6 +18,7 @@ import tqdm  # type: ignore
 import torch  # type: ignore
 import torchaudio  # type: ignore
 import pickle
+import shutil
 import json
 
 from disentangle.lightning import compute_difference_metric
@@ -237,6 +238,23 @@ if __name__ == "__main__":
 
     cache_dir = config.get("cache_dir", None)
     num_cached_samples = config.get("num_cached_samples", 0)
+
+    if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
+        os.makedirs(cache_dir, exist_ok=True)
+        # Walk the directory and remove files/dirs
+        for root, dirs, files in os.walk(cache_dir, topdown=False):
+            for name in files:
+                try:
+                    os.remove(os.path.join(root, name))
+                except Exception:
+                    pass
+            for name in dirs:
+                dirpath = os.path.join(root, name)
+                try:
+                    shutil.rmtree(dirpath)
+                except Exception:
+                    pass
+
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
