@@ -339,7 +339,7 @@ if __name__ == "__main__":
     
     if config.get("run_asr_eval", False):
         assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
-        print("Running ASR evaluation on final results")
+        print("Running ASR evaluation")
         asr_results = run_asr_eval(cache_dir, device="cuda")
         for key, value in asr_results.items(): # Add to main results file
             parsed_results[key] = value
