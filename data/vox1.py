@@ -126,6 +126,7 @@ class Vox1Dataset(Dataset):
             "length": audio.size(1),
             "filename": fname,
             "speaker_id": speaker_id,
+            "audio_path": audio_path,
         }
 
     @staticmethod
@@ -150,6 +151,7 @@ class Vox1Dataset(Dataset):
         ids = [item["id"] for item in batch]
         filenames = [item["filename"] for item in batch]
         lengths = torch.tensor(lengths, dtype=torch.long)
+        audio_paths = [item["audio_path"] for item in batch]
 
         return {
             "audio": audio,
@@ -159,6 +161,7 @@ class Vox1Dataset(Dataset):
             "id": ids,
             "length": lengths,
             "filename": filenames,
+            "audio_path": audio_paths,
         }
 
 
