@@ -255,7 +255,7 @@ if __name__ == "__main__":
             codec_sr,
             cache_dir=cache_dir,
             device=config["device"],
-            filename=f"{i}_{sample['filename']}.pkl"
+            filename=f"{i}_{sample['filename']}"
         )
         
         # Build save dict, optionally excluding audio to save space
