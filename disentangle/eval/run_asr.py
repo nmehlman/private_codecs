@@ -19,7 +19,7 @@ def _compute_wer(reference_text: dict, transcriptions: dict):
 
     return np.mean(wer_results)
 
-def run_asr_eval(cache_dir: str, save_path: str, device: str = "cuda", reference_text: Union[dict, None] = None):
+def run_asr_eval(cache_dir: str, device: str = "cuda", reference_text: Union[dict, None] = None):
 
     asr = WhisperASR(device=device)
     raw_audio_path = os.path.join(cache_dir, "raw_audio")
@@ -66,8 +66,7 @@ def run_asr_eval(cache_dir: str, save_path: str, device: str = "cuda", reference
         "wer_codec_only_raw": wer_codec_only_raw,
     }
 
-    with open(save_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
+    return results
 
 if __name__ == "__main__":
     import argparse
@@ -84,4 +83,7 @@ if __name__ == "__main__":
     else:
         reference_text = None
 
-    run_asr_eval(args.cache_dir, args.save_path, device=args.device, reference_text=reference_text)
+    results = run_asr_eval(args.cache_dir, device=args.device, reference_text=reference_text)
+
+    with open(args.save_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)

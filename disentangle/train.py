@@ -8,6 +8,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
 import json
 import yaml
+import shutil
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
@@ -18,6 +19,7 @@ from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
 
 from disentangle.lightning import SexDisentangleModule
+from disentangle.eval.run_asr import run_asr_eval
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
@@ -37,13 +39,37 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: Union[list, None] = None, device='cuda') -> str:
+def run_eval(
+        config: dict, 
+        log_dir: str, 
+        pl_model: SexDisentangleModule, 
+        dataset_stats: dict, 
+        cache_dir: Union[str, None] = None,
+        num_cached_samples: int = 0,
+        val_spks: Union[list, None] = None, 
+        device='cuda') -> str:
 
     save_root = os.path.join(log_dir, "eval")
     if not os.path.exists(save_root):
         os.makedirs(save_root)
     else:
         raise ValueError(f"Save path {save_root} already exists!")
+    
+    if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
+        os.makedirs(cache_dir, exist_ok=True)
+        # Walk the directory and remove files/dirs
+        for root, dirs, files in os.walk(cache_dir, topdown=False):
+            for name in files:
+                try:
+                    os.remove(os.path.join(root, name))
+                except Exception:
+                    pass
+            for name in dirs:
+                dirpath = os.path.join(root, name)
+                try:
+                    shutil.rmtree(dirpath)
+                except Exception:
+                    pass
 
     codec_name = config["codec_name"]
     sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis
@@ -64,11 +90,20 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, device=device)
+        results = process_sample(
+            sample,
+            codec,
+            pl_model,
+            sex_model,
+            dataset_sr=VOX1_SR,
+            codec_sr=codec_sr,
+            cache_dir=cache_dir if i < num_cached_samples else None, # Only cache the first N samples if caching is enabled
+            device=device,
+            filename=f"{i}_{sample['filename']}"
+        )
         
         # Build save dict, optionally excluding audio to save space
-        save_dict = {
-            "filename": results["filename"],
+        save_dict = { 
             "label": results["label"],
             "sex_logits_raw": results["sex_logits_raw"],
             "sex_logits_private": results["sex_logits_private"],
@@ -77,12 +112,12 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
             "difference_metrics": results["difference_metrics"],
         }
         
-        if i <= sample_to_save:  # Save audio only for first N samples
+        if i <= config["num_samples_to_save"]:  # Save audio only for first N samples
             save_dict["audio_raw"] = results["audio_raw"]
             save_dict["audio_private"] = results["audio_private"]
             save_dict["audio_codec_only"] = results["audio_codec_only"]
         
-        save_path = os.path.join(save_root, f"{i}_{results['filename'].replace('.wav', '')}.pkl")
+        save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
             
@@ -296,9 +331,19 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
+    cache_dir = config.get("cache_dir", None)
+    num_cached_samples = config.get("num_cached_samples", 0)
     results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
-    
+
     parsed_results = parse_results(results_dir) # Compute average metrics
+    
+    if config.get("run_asr_eval", False):
+        assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
+        print("Running ASR evaluation on final results")
+        asr_results = run_asr_eval(cache_dir, device="cuda")
+        for key, value in asr_results.items(): # Add to main results file
+            parsed_results[key] = value
+    
     for key, value in parsed_results.items():
         if value is None:
             print(f"{key}: None")

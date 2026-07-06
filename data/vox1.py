@@ -20,7 +20,6 @@ GENDER_LABELS = [
     'Female',    # 1
 ]
 
-
 class Vox1Dataset(Dataset):
 
     def __init__(

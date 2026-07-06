@@ -255,7 +255,6 @@ if __name__ == "__main__":
                 except Exception:
                     pass
 
-    
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
