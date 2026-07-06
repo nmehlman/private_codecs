@@ -4,6 +4,7 @@ import torchaudio
 import os
 import json
 import librosa
+import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 class WhisperASR(nn.Module):
@@ -44,7 +45,7 @@ class WhisperASR(nn.Module):
         results = self.pipe(x, generate_kwargs={"language": "en"})
         return results["text"]
     
-    def transcribe_dir(self, audio_dir: str, save_path: str):
+    def transcribe_dir(self, audio_dir: str, save_path: str, batch_size: int = 32):
         """Transcribe all audio files in a directory and save results to a text file."""
         
         audio_files = [os.path.join(audio_dir, f) for f in os.listdir(audio_dir) if f.endswith((".wav", ".flac", ".mp3"))]
@@ -55,7 +56,10 @@ class WhisperASR(nn.Module):
                 yield {"raw": array, "sampling_rate": self.sample_rate}
 
         results = []
-        for out in self.pipe(data_generator(audio_files), batch_size=8, generate_kwargs={"language": "en"}):
+        for out in tqdm.tqdm(
+            self.pipe(data_generator(audio_files), batch_size=batch_size, generate_kwargs={"language": "en"}),
+            total = len(audio_files)//batch_size + 1
+            ):
             results.append(out["text"])
 
         # Save transcriptions as JSON mapping filename -> transcription
