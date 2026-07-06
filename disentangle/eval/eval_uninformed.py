@@ -57,11 +57,6 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cac
     raw_audio_cache_path = None
     codec_only_cache_path = None
     private_audio_cache_path = None
-    
-    if cache_dir:
-        raw_audio_cache_path = _get_audio_cache_path(cache_dir, "raw_audio", filename)
-        codec_only_cache_path = _get_audio_cache_path(cache_dir, "codec_only_audio", filename)
-        private_audio_cache_path = _get_audio_cache_path(cache_dir, "private_audio", filename)
 
     raw_audio = audio
     
@@ -82,16 +77,10 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cac
 
     with torch.no_grad():
         audio_private = codec.decode(codes_private)
-
-    if private_audio_cache_path:
-        _save_cached_audio(private_audio_cache_path, audio_private, sr=dataset_sr)
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
     with torch.no_grad():
         audio_codec_only = codec.decode(codes_raw)
-
-    if codec_only_cache_path:
-        _save_cached_audio(codec_only_cache_path, audio_codec_only, sr=dataset_sr)
     
     # Resample audios to dataset sr for sex model
     audio_private = torchaudio.functional.resample(
@@ -129,8 +118,14 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cac
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
     }
 
-    if raw_audio_cache_path:
+    # Save audio to cache if paths are provided
+    if cache_dir:
+        raw_audio_cache_path = _get_audio_cache_path(cache_dir, "raw_audio", filename)
+        codec_only_cache_path = _get_audio_cache_path(cache_dir, "codec_only_audio", filename)
+        private_audio_cache_path = _get_audio_cache_path(cache_dir, "private_audio", filename)
         _save_cached_audio(raw_audio_cache_path, raw_audio, sr=dataset_sr)
+        _save_cached_audio(private_audio_cache_path, audio_private, sr=dataset_sr)
+        _save_cached_audio(codec_only_cache_path, audio_codec_only, sr=dataset_sr)
 
     return results
 
