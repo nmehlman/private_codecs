@@ -27,24 +27,34 @@ def run_asr_eval(cache_dir: str, save_path: str, device: str = "cuda", reference
     private_audio_path = os.path.join(cache_dir, "private_audio")
 
     # Run transcription
+    print("Running ASR on raw audio")
     raw_transcriptions = asr.transcribe_dir(raw_audio_path, os.path.join(cache_dir, "raw_audio_transcriptions.json"))
+    
+    print("Running ASR on codec-only audio")
     codec_only_transcriptions = asr.transcribe_dir(codec_only_audio_path, os.path.join(cache_dir, "codec_only_audio_transcriptions.json"))
+    
+    print("Running ASR on private audio")
     private_transcriptions = asr.transcribe_dir(private_audio_path, os.path.join(cache_dir, "private_audio_transcriptions.json"))
 
     # Calculate WER
     if reference_text is not None:
+        print("Calculating WER against reference text")
         wer_raw_ref = _compute_wer(reference_text, raw_transcriptions)
         wer_codec_only_ref = _compute_wer(reference_text, codec_only_transcriptions)
         wer_private_ref = _compute_wer(reference_text, private_transcriptions)
 
     else:
+        print("No reference text provided, skipping WER against reference.")
         wer_raw_ref = None
         wer_codec_only_ref = None
         wer_private_ref = None
 
     # Calculate WER between private and raw, and private and codec-only
+    print("Calculating WER between private and raw audio")
     wer_private_raw = _compute_wer(raw_transcriptions, private_transcriptions)
+    print("Calculating WER between private and codec-only audio")
     wer_private_codec_only = _compute_wer(codec_only_transcriptions, private_transcriptions)
+    print("Calculating WER between codec-only and raw audio")
     wer_codec_only_raw = _compute_wer(raw_transcriptions, codec_only_transcriptions) 
 
     results = {
