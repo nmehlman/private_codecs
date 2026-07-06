@@ -52,11 +52,14 @@ class WhisperASR(nn.Module):
         max_duration_seconds = 30.0
 
         # Whisper's feature extractor expects inputs that fit in its ~30 second window.
-        audio_files = [
+        length_filtered_audio_files = [
             path
             for path in audio_files
-            if librosa.get_duration(filename=path) <= max_duration_seconds
+            if librosa.get_duration(path) <= max_duration_seconds
         ]
+
+        if len(length_filtered_audio_files) < len(audio_files):
+            print(f"Warning: {len(audio_files) - len(length_filtered_audio_files)} files were skipped because they exceed {max_duration_seconds} seconds in duration.")
         
         def data_generator(file_paths):
             for path in file_paths:
@@ -65,8 +68,8 @@ class WhisperASR(nn.Module):
 
         results = []
         for out in tqdm.tqdm(
-            self.pipe(data_generator(audio_files), batch_size=batch_size, generate_kwargs={"language": "en"}),
-            total = len(audio_files)
+            self.pipe(data_generator(length_filtered_audio_files), batch_size=batch_size, generate_kwargs={"language": "en"}),
+            total = len(length_filtered_audio_files)
             ):
             results.append(out["text"])
 
