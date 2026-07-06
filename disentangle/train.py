@@ -323,7 +323,7 @@ if __name__ == "__main__":
     print("Training complete. Running final evaluation")
     cache_dir = config.get("cache_dir", None)
     num_cached_samples = config.get("num_cached_samples", 0)
-    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
+    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None, cache_dir=cache_dir, num_cached_samples=num_cached_samples, device="cuda")
 
     parsed_results = parse_results(results_dir) # Compute average metrics
     
