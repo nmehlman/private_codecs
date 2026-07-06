@@ -32,7 +32,20 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=None):
+def _sanitize_cache_key(name):
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", str(name))
+
+
+def _get_audio_cache_path(cache_dir, cache_name, filename):
+    return os.path.join(cache_dir, cache_name, f"{_sanitize_cache_key(filename)}.pt")
+
+
+def _save_cached_audio(cache_path, audio_tensor):
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    torch.save(audio_tensor.detach().cpu(), cache_path)
+
+
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cache_dir=None, device=None):
     
     """Process a single sample."""
     
@@ -40,26 +53,45 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, dev
     label = sample["gender"]
     filename = sample["filename"]
     length = sample["length"]
+
+    raw_audio_cache_path = None
+    codec_only_cache_path = None
+    private_audio_cache_path = None
+    
+    if cache_dir:
+        raw_audio_cache_path = _get_audio_cache_path(cache_dir, "raw_audio", filename)
+        codec_only_cache_path = _get_audio_cache_path(cache_dir, "codec_only_audio", filename)
+        private_audio_cache_path = _get_audio_cache_path(cache_dir, "private_audio", filename)
+
+    raw_audio = audio
     
     # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
-            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
+            raw_audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
         )
     
     # Encode audio with codec
     with torch.no_grad():
-        embedding_raw = codec.encode(audio, sr=dataset_sr)
+        embedding_raw = codec.encode(raw_audio, sr=dataset_sr)
         codes_raw, quantized_embedding_raw = codec.quantize(embedding_raw)
     
     with torch.no_grad():
         embedding_private, _ = pl_model(quantized_embedding_raw)
         codes_private, embedding_private_quantized = codec.quantize(embedding_private)
+
+    with torch.no_grad():
         audio_private = codec.decode(codes_private)
+
+    if private_audio_cache_path:
+        _save_cached_audio(private_audio_cache_path, audio_private)
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
     with torch.no_grad():
         audio_codec_only = codec.decode(codes_raw)
+
+    if codec_only_cache_path:
+        _save_cached_audio(codec_only_cache_path, audio_codec_only)
     
     # Resample audios to dataset sr for sex model
     audio_private = torchaudio.functional.resample(
@@ -96,6 +128,9 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, dev
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
     }
+
+    if raw_audio_cache_path:
+        _save_cached_audio(raw_audio_cache_path, raw_audio)
 
     return results
 
@@ -143,7 +178,7 @@ DATASETS = {
 
 if __name__ == "__main__":
     
-    parser = argparse.ArgumentParser(description="Export codec embeddings.")
+    parser = argparse.ArgumentParser(description="Run eval")
     
     parser.add_argument(
         "--config",
@@ -205,11 +240,22 @@ if __name__ == "__main__":
     # Load dataset
     dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["dataset"], speakers=train_val_spks['val'] if train_val_spks else None) 
+
+    cache_dir = config.get("cache_dir", os.path.join(save_root, "audio_cache"))
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, device=config["device"])
+        results = process_sample(
+            sample,
+            codec,
+            pl_model,
+            sex_model,
+            dataset_sr,
+            codec_sr,
+            cache_dir=cache_dir,
+            device=config["device"],
+        )
         
         # Build save dict, optionally excluding audio to save space
         save_dict = { 
