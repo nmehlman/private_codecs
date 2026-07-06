@@ -56,20 +56,8 @@ def run_eval(
         raise ValueError(f"Save path {save_root} already exists!")
     
     if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
+        shutil.rmtree(cache_dir)
         os.makedirs(cache_dir, exist_ok=True)
-        # Walk the directory and remove files/dirs
-        for root, dirs, files in os.walk(cache_dir, topdown=False):
-            for name in files:
-                try:
-                    os.remove(os.path.join(root, name))
-                except Exception:
-                    pass
-            for name in dirs:
-                dirpath = os.path.join(root, name)
-                try:
-                    shutil.rmtree(dirpath)
-                except Exception:
-                    pass
 
     codec_name = config["codec_name"]
     sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis
