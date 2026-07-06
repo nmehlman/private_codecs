@@ -55,7 +55,7 @@ class WhisperASR(nn.Module):
         length_filtered_audio_files = [
             path
             for path in audio_files
-            if librosa.get_duration(path) <= max_duration_seconds
+            if librosa.get_duration(path=path) <= max_duration_seconds
         ]
 
         if len(length_filtered_audio_files) < len(audio_files):
