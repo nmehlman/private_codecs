@@ -49,6 +49,14 @@ class WhisperASR(nn.Module):
         """Transcribe all audio files in a directory and save results to a text file."""
         
         audio_files = [os.path.join(audio_dir, f) for f in os.listdir(audio_dir) if f.endswith((".wav", ".flac", ".mp3"))]
+        max_duration_seconds = 30.0
+
+        # Whisper's feature extractor expects inputs that fit in its ~30 second window.
+        audio_files = [
+            path
+            for path in audio_files
+            if librosa.get_duration(filename=path) <= max_duration_seconds
+        ]
         
         def data_generator(file_paths):
             for path in file_paths:
