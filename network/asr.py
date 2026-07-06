@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchaudio
 import os
+import json
 import librosa
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
@@ -57,9 +58,10 @@ class WhisperASR(nn.Module):
         for out in self.pipe(data_generator(audio_files), batch_size=8, generate_kwargs={"language": "en"}):
             results.append(out["text"])
 
-        with open(save_path, "w") as f:
-            for file_path, transcription in zip(audio_files, results):
-                f.write(f"{os.path.basename(file_path)}\t{transcription}\n")
+        # Save transcriptions as JSON mapping filename -> transcription
+        trans_dict = {os.path.basename(file_path): transcription for file_path, transcription in zip(audio_files, results)}
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(trans_dict, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
 
