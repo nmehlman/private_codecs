@@ -236,7 +236,8 @@ if __name__ == "__main__":
     dataset_class, dataset_sr = DATASETS[dataset_name]
     dataset = dataset_class(**config["dataset"], speakers=train_val_spks['val'] if train_val_spks else None) 
 
-    cache_dir = config.get("cache_dir", os.path.join(save_root, "audio_cache"))
+    cache_dir = config.get("cache_dir", None)
+    num_cached_samples = config.get("num_cached_samples", 0)
     
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
@@ -248,7 +249,7 @@ if __name__ == "__main__":
             sex_model,
             dataset_sr,
             codec_sr,
-            cache_dir=cache_dir,
+            cache_dir=cache_dir if i < num_cached_samples else None,
             device=config["device"],
             filename=f"{i}_{sample['filename']}"
         )
