@@ -104,7 +104,7 @@ class Vox1Dataset(Dataset):
         sample_info = self.sample_index[idx]
         speaker_id = sample_info["speaker_id"]
         session_id = sample_info["session_id"]
-        fname = sample_info["filename"]
+        fname = sample_info["filename"].replace(".wav", "")  # Remove extension for ID
         gender = sample_info["gender"]
 
         audio_path = sample_info["path"]
