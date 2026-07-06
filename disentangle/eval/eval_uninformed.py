@@ -45,13 +45,13 @@ def _save_cached_audio(cache_path, audio_tensor):
     torch.save(audio_tensor.detach().cpu(), cache_path)
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cache_dir=None, device=None):
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cache_dir=None, device=None, filename=None):
     
     """Process a single sample."""
     
     audio = sample["audio"].to(device)
     label = sample["gender"]
-    filename = sample["filename"]
+    filename = sample["filename"] if filename is None else filename
     length = sample["length"]
 
     raw_audio_cache_path = None
@@ -255,6 +255,7 @@ if __name__ == "__main__":
             codec_sr,
             cache_dir=cache_dir,
             device=config["device"],
+            filename=f"{i}_{sample['filename']}.pkl"
         )
         
         # Build save dict, optionally excluding audio to save space
