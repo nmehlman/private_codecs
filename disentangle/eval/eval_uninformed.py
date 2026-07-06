@@ -37,12 +37,12 @@ def _sanitize_cache_key(name):
 
 
 def _get_audio_cache_path(cache_dir, cache_name, filename):
-    return os.path.join(cache_dir, cache_name, f"{_sanitize_cache_key(filename)}.pt")
+    return os.path.join(cache_dir, cache_name, f"{_sanitize_cache_key(filename)}.wav")
 
 
-def _save_cached_audio(cache_path, audio_tensor):
+def _save_cached_audio(cache_path, audio_tensor, sr):
     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-    torch.save(audio_tensor.detach().cpu(), cache_path)
+    torchaudio.save(cache_path, audio_tensor.detach().cpu(), sample_rate=sr)
 
 
 def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cache_dir=None, device=None, filename=None):
@@ -84,14 +84,14 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cac
         audio_private = codec.decode(codes_private)
 
     if private_audio_cache_path:
-        _save_cached_audio(private_audio_cache_path, audio_private)
+        _save_cached_audio(private_audio_cache_path, audio_private, sr=dataset_sr)
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
     with torch.no_grad():
         audio_codec_only = codec.decode(codes_raw)
 
     if codec_only_cache_path:
-        _save_cached_audio(codec_only_cache_path, audio_codec_only)
+        _save_cached_audio(codec_only_cache_path, audio_codec_only, sr=dataset_sr)
     
     # Resample audios to dataset sr for sex model
     audio_private = torchaudio.functional.resample(
@@ -130,7 +130,7 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cac
     }
 
     if raw_audio_cache_path:
-        _save_cached_audio(raw_audio_cache_path, raw_audio)
+        _save_cached_audio(raw_audio_cache_path, raw_audio, sr=dataset_sr)
 
     return results
 
