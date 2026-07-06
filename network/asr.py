@@ -58,7 +58,7 @@ class WhisperASR(nn.Module):
         results = []
         for out in tqdm.tqdm(
             self.pipe(data_generator(audio_files), batch_size=batch_size, generate_kwargs={"language": "en"}),
-            total = len(audio_files)//batch_size + 1
+            total = len(audio_files)
             ):
             results.append(out["text"])
 
@@ -71,4 +71,4 @@ if __name__ == "__main__":
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     model = WhisperASR(device=device, pretrain_model="openai/whisper-large-v3")
-    model.transcribe_dir('/home1/nmehlman/private_codecs/private_codecs/disentangle/eval/test_audio', "./test_transcriptions.txt")
+    model.transcribe_dir('/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/gender_test/version_1/eval/audio_cache/codec_only_audio/', "./test_transcriptions.json")
