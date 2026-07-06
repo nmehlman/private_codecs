@@ -67,6 +67,8 @@ class WhisperASR(nn.Module):
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(trans_dict, f, ensure_ascii=False, indent=2)
 
+        return trans_dict
+
 if __name__ == "__main__":
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"

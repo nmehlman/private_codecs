@@ -19,7 +19,6 @@ import torch  # type: ignore
 import torchaudio  # type: ignore
 import pickle
 import json
-from jiwer import wer  # type: ignore
 
 from disentangle.lightning import compute_difference_metric
 
