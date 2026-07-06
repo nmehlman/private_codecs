@@ -120,6 +120,8 @@ def run_eval(
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
+
+        if i > 100: break # DEBUG
             
     return save_root
 
