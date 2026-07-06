@@ -36,7 +36,7 @@ lightning:
   use_adversarial: true
   lr_scheduling: false
   adv_annealing_steps: 50000 
-  adv_loss_weight: 0.5
+  adv_loss_weight: 0.75
   adv_update_factor: 5  
   gradient_clip_val: 100.0
   ae_warmup_steps: 50000

@@ -109,7 +109,6 @@ def run_eval(
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
 
-        if i > 100: break # DEBUG
             
     return save_root
 
