@@ -245,6 +245,8 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
     # Load config, and perform general setup
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
