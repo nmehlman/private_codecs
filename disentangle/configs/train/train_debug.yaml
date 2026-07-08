@@ -56,7 +56,7 @@ trainer:
   sync_batchnorm: True
   accelerator: "gpu"
   devices: "auto"
-  deterministic: False
+  deterministic: True
   detect_anomaly: False
 
 # Tensorboard options:

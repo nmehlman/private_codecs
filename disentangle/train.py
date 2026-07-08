@@ -307,8 +307,8 @@ if __name__ == "__main__":
     # Make trainer
     trainer = Trainer(
         logger=logger,
-        strategy=DDPStrategy(find_unused_parameters=True),
         callbacks=callbacks,
+        deterministic=True,
         **config["trainer"],
     )
 
@@ -316,7 +316,7 @@ if __name__ == "__main__":
             pl_model,
             train_dataloaders = dataloaders["train"],
             val_dataloaders = dataloaders["val"],
-            ckpt_path = config["ckpt_path"]
+            ckpt_path = config["ckpt_path"],
         )
     
     print("Training complete. Running final evaluation")
