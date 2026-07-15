@@ -83,7 +83,6 @@ class EmbeddingDataset(Dataset):
         
 
         return batch_features, labs, embedding, lengths
-        return batch_features, labs, embedding, lengths
     
 
 def get_dataloaders(
