@@ -19,8 +19,8 @@ import tqdm  # type: ignore
 import torch  # type: ignore
 import torchaudio  # type: ignore
 import pickle
-import random
-from jiwer import wer  # type: ignore
+import shutil
+import json
 
 from disentangle.lightning import compute_difference_metric
 
@@ -33,29 +33,50 @@ def get_stats(tensor):
         }
 
 
-def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model=None, device=None):
+def _sanitize_cache_key(name):
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", str(name))
+
+
+def _get_audio_cache_path(cache_dir, cache_name, filename):
+    return os.path.join(cache_dir, cache_name, f"{_sanitize_cache_key(filename)}.wav")
+
+
+def _save_cached_audio(cache_path, audio_tensor, sr):
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    torchaudio.save(cache_path, audio_tensor.detach().cpu(), sample_rate=sr)
+
+
+def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, cache_dir=None, device=None, filename=None):
     
     """Process a single sample."""
     
     audio = sample["audio"].to(device)
     label = sample["gender"]
-    filename = sample["filename"]
+    filename = sample["filename"] if filename is None else filename
     length = sample["length"]
+
+    raw_audio_cache_path = None
+    codec_only_cache_path = None
+    private_audio_cache_path = None
+
+    raw_audio = audio
     
     # Get embedding for raw audio
     with torch.no_grad():
         _, sex_logits_raw = sex_model(
-            audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
+            raw_audio, sr=dataset_sr, return_embeddings=False, lengths=torch.tensor([length]).to(device)
         )
     
     # Encode audio with codec
     with torch.no_grad():
-        embedding_raw = codec.encode(audio, sr=dataset_sr)
+        embedding_raw = codec.encode(raw_audio, sr=dataset_sr)
         codes_raw, quantized_embedding_raw = codec.quantize(embedding_raw)
     
     with torch.no_grad():
         embedding_private, _ = pl_model(quantized_embedding_raw)
         codes_private, embedding_private_quantized = codec.quantize(embedding_private)
+
+    with torch.no_grad():
         audio_private = codec.decode(codes_private)
     
     # Codec-only reconstruction (direct decode from quantized codec embedding, no autoencoder)
@@ -83,17 +104,6 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
             lengths=torch.tensor([length]).to(device)
         )  
         
-    if asr_model is not None:  
-        transcription_raw = asr_model.transcribe(audio.cpu(), sr=dataset_sr)
-        transcription_private = asr_model.transcribe(audio_private.cpu(), sr=dataset_sr)
-        transcription_codec_only = asr_model.transcribe(audio_codec_only.cpu(), sr=dataset_sr)
-        reference_text = sample.get("transcript", sample.get("text", sample.get("reference", "")))
-        wer_raw = wer(reference_text, transcription_raw) if reference_text else None
-        wer_private = wer(reference_text, transcription_private) if reference_text else None
-        wer_codec_only = wer(reference_text, transcription_codec_only) if reference_text else None
-        
-        
-        
     # Build results dict
     results = {
         "filename": filename,
@@ -107,14 +117,17 @@ def process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr
         "audio_private": audio_private.cpu().squeeze(),
         "audio_codec_only": audio_codec_only.cpu().squeeze(),
         "difference_metrics": compute_difference_metric(quantized_embedding_raw, embedding_private_quantized),
-        "transcription_raw": transcription_raw if asr_model is not None else None,
-        "transcription_private": transcription_private if asr_model is not None else None,
-        "transcription_codec_only": transcription_codec_only if asr_model is not None else None,
-        "wer_raw": wer_raw if asr_model is not None else None,
-        "wer_private": wer_private if asr_model is not None else None,
-        "wer_codec_only": wer_codec_only if asr_model is not None else None,
     }
-    
+
+    # Save audio to cache if paths are provided
+    if cache_dir:
+        raw_audio_cache_path = _get_audio_cache_path(cache_dir, "raw_audio", filename)
+        codec_only_cache_path = _get_audio_cache_path(cache_dir, "codec_only_audio", filename)
+        private_audio_cache_path = _get_audio_cache_path(cache_dir, "private_audio", filename)
+        _save_cached_audio(raw_audio_cache_path, raw_audio, sr=dataset_sr)
+        _save_cached_audio(private_audio_cache_path, audio_private, sr=dataset_sr)
+        _save_cached_audio(codec_only_cache_path, audio_codec_only, sr=dataset_sr)
+
     return results
 
 
@@ -161,7 +174,7 @@ DATASETS = {
 
 if __name__ == "__main__":
     
-    parser = argparse.ArgumentParser(description="Export codec embeddings.")
+    parser = argparse.ArgumentParser(description="Run eval")
     
     parser.add_argument(
         "--config",
@@ -213,19 +226,56 @@ if __name__ == "__main__":
     # Load speech codec
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
+
+
+    # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
+    train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
+    if train_val_spks_split_file:
+        with open(train_val_spks_split_file, "r") as f:
+            train_val_spks = json.load(f)
+    else:
+        train_val_spks = None
     
     # Load dataset
     dataset_class, dataset_sr = DATASETS[dataset_name]
-    dataset = dataset_class(**config["dataset"]) 
-    
+    dataset = dataset_class(**config["dataset"], speakers=train_val_spks['val'] if train_val_spks else None) 
+
+    cache_dir = config.get("cache_dir", None)
+    num_cached_samples = config.get("num_cached_samples", 0)
+
+    if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
+        os.makedirs(cache_dir, exist_ok=True)
+        # Walk the directory and remove files/dirs
+        for root, dirs, files in os.walk(cache_dir, topdown=False):
+            for name in files:
+                try:
+                    os.remove(os.path.join(root, name))
+                except Exception:
+                    pass
+            for name in dirs:
+                dirpath = os.path.join(root, name)
+                try:
+                    shutil.rmtree(dirpath)
+                except Exception:
+                    pass
+
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, dataset_sr, codec_sr, asr_model, config["device"])
+        results = process_sample(
+            sample,
+            codec,
+            pl_model,
+            sex_model,
+            dataset_sr,
+            codec_sr,
+            cache_dir=cache_dir if i < num_cached_samples else None,
+            device=config["device"],
+            filename=f"{i}_{sample['filename']}"
+        )
         
         # Build save dict, optionally excluding audio to save space
-        save_dict = {
-            "filename": results["filename"],
+        save_dict = { 
             "label": results["label"],
             "sex_logits_raw": results["sex_logits_raw"],
             "sex_logits_private": results["sex_logits_private"],

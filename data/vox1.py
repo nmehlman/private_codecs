@@ -4,6 +4,7 @@ import os
 import torchaudio
 import csv
 import tqdm
+from typing import List, Union
 
 VOX1_SR = 16000  # VoxCeleb1 is typically 16kHz
 
@@ -19,7 +20,6 @@ GENDER_LABELS = [
     'Female',    # 1
 ]
 
-
 class Vox1Dataset(Dataset):
 
     def __init__(
@@ -29,7 +29,7 @@ class Vox1Dataset(Dataset):
         resample_rate: int = 16000,
         gender_mapping: dict = VOX1_GENDER_MAPPING,
         audio_subdir: str = "vox1_dev_wav",
-        speakers: list = None,
+        speakers: Union[List[str], None] = None,
     ):
         """
         Dataset for VoxCeleb1 audio files with gender labels.
@@ -103,7 +103,7 @@ class Vox1Dataset(Dataset):
         sample_info = self.sample_index[idx]
         speaker_id = sample_info["speaker_id"]
         session_id = sample_info["session_id"]
-        fname = sample_info["filename"]
+        fname = sample_info["filename"].replace(".wav", "")  # Remove extension for ID
         gender = sample_info["gender"]
 
         audio_path = sample_info["path"]
@@ -125,6 +125,7 @@ class Vox1Dataset(Dataset):
             "length": audio.size(1),
             "filename": fname,
             "speaker_id": speaker_id,
+            "audio_path": audio_path,
         }
 
     @staticmethod
@@ -149,6 +150,7 @@ class Vox1Dataset(Dataset):
         ids = [item["id"] for item in batch]
         filenames = [item["filename"] for item in batch]
         lengths = torch.tensor(lengths, dtype=torch.long)
+        audio_paths = [item["audio_path"] for item in batch]
 
         return {
             "audio": audio,
@@ -158,6 +160,7 @@ class Vox1Dataset(Dataset):
             "id": ids,
             "length": lengths,
             "filename": filenames,
+            "audio_path": audio_paths,
         }
 
 

@@ -2,6 +2,7 @@ import sys
 import torch
 import torch.nn.functional as F
 import torchaudio
+from typing import Union
 
 from src.model.age_sex.wavlm_demographics import WavLMWrapper
 
@@ -17,7 +18,11 @@ class VoxProfileAgeSexModel:
         self.model = WavLMWrapper.from_pretrained("tiantiaf/wavlm-large-age-sex").to(device)
         self.model.eval()
 
-    def __call__(self, audio: torch.Tensor, sr: int, return_embeddings: bool = False, lengths: torch.Tensor = None):
+    def __call__(self, 
+                 audio: torch.Tensor, 
+                 sr: int, 
+                 return_embeddings: bool = False, 
+                 lengths: Union[torch.Tensor, None] = None) -> Union[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         
         audio = audio.to(self.device)
 

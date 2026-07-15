@@ -21,14 +21,13 @@ audio_eval_dataset:
 
 # Dataloader options:
 dataloader:
-  batch_size: 128
+  batch_size: 64
   num_workers: 4
 
 # Model options:
 lightning:
   codec_dim: 512
   latent_dim: 64
-  emotion_dim: 256
   enc_channels: [256, 128]
   dec_channels: [256]
   learning_rate: 0.001
@@ -38,7 +37,7 @@ lightning:
   lr_scheduling: false
   adv_annealing_steps: 50000 
   adv_loss_weight: 0.5
-  adv_update_factor: 5  
+  adv_update_factor: 10  
   gradient_clip_val: 100.0
   ae_warmup_steps: 50000
   adv_weight_decay: 0.001
@@ -46,7 +45,7 @@ lightning:
 
 # Training options:
 trainer:
-  max_epochs: 140
+  max_epochs: 100
   val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
   log_every_n_steps: 10    
   sync_batchnorm: True
@@ -57,5 +56,5 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender"
-  name: "repro" 
+  name: "more-up" 
   version: null  

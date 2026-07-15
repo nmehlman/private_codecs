@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import pytorch_lightning as pl # pyright: ignore[reportMissingImports]
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Function
 
@@ -57,6 +58,8 @@ class SexDisentangleModule(pl.LightningModule):
         log_gradients: bool = False,
     ):
         super().__init__()
+        
+        self.save_hyperparameters(ignore=["dataset_stats"])
 
         self.ae = DisentanglementAE(
             codec_dim=codec_dim,
@@ -77,7 +80,7 @@ class SexDisentangleModule(pl.LightningModule):
                 **adversarial_kwargs,
             )
         else:
-            self.adv_classifier = None
+            self.adv_classifier = nn.Identity()  # Placeholder when adversarial training is not used
 
         self.learning_rate = learning_rate
         self.adv_learning_rate = adv_learning_rate
@@ -358,7 +361,7 @@ class SexDisentangleModule(pl.LightningModule):
             return ae_loss.detach()
 
     def validation_step(self, batch, batch_idx):
-        x, _, emotion_embs, lengths = batch
+        x, emotion_embs, lengths = batch
         x_hat, z = self(x)
         recon_loss = F.mse_loss(x_hat, x)
         self.log(

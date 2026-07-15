@@ -8,15 +8,18 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.strategies.ddp import DDPStrategy
 import json
 import yaml
+import shutil
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 import os
 import json
+from typing import Union
 
 from disentangle.codec_data import get_dataloaders
 from disentangle.misc.utils import load_dataset_stats
 
 from disentangle.lightning import SexDisentangleModule
+from disentangle.eval.run_asr import run_asr_eval
 from network.models import VoxProfileAgeSexModel
 from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 from disentangle.eval.eval_uninformed import process_sample, _resolve_checkpoint_path
@@ -36,13 +39,25 @@ CODECS = {
     "bigcodec": (BigCodec, BIGCODEC_SR),
 }
 
-def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset_stats: dict, val_spks: list = None, device='cuda') -> str:
+def run_eval(
+        config: dict, 
+        log_dir: str, 
+        pl_model: SexDisentangleModule, 
+        dataset_stats: dict, 
+        cache_dir: Union[str, None] = None,
+        num_cached_samples: int = 0,
+        val_spks: Union[list, None] = None, 
+        device='cuda') -> str:
 
     save_root = os.path.join(log_dir, "eval")
     if not os.path.exists(save_root):
         os.makedirs(save_root)
     else:
         raise ValueError(f"Save path {save_root} already exists!")
+    
+    if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
+        shutil.rmtree(cache_dir)
+        os.makedirs(cache_dir, exist_ok=True)
 
     codec_name = config["codec_name"]
     sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis
@@ -63,11 +78,20 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
         
-        results = process_sample(sample, codec, pl_model, sex_model, VOX1_SR, codec_sr, device=device)
+        results = process_sample(
+            sample,
+            codec,
+            pl_model,
+            sex_model,
+            dataset_sr=VOX1_SR,
+            codec_sr=codec_sr,
+            cache_dir=cache_dir if i < num_cached_samples else None, # Only cache the first N samples if caching is enabled
+            device=device,
+            filename=f"{i}_{sample['filename']}"
+        )
         
         # Build save dict, optionally excluding audio to save space
-        save_dict = {
-            "filename": results["filename"],
+        save_dict = { 
             "label": results["label"],
             "sex_logits_raw": results["sex_logits_raw"],
             "sex_logits_private": results["sex_logits_private"],
@@ -76,7 +100,7 @@ def run_eval(config: dict, log_dir: str, pl_model: SexDisentangleModule, dataset
             "difference_metrics": results["difference_metrics"],
         }
         
-        if i <= sample_to_save:  # Save audio only for first N samples
+        if i <= config.get("num_samples_to_save", 0):  # Save audio only for first N samples
             save_dict["audio_raw"] = results["audio_raw"]
             save_dict["audio_private"] = results["audio_private"]
             save_dict["audio_codec_only"] = results["audio_codec_only"]
@@ -220,13 +244,15 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
     # Load config, and perform general setup
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
     
     os.environ["CUDA_VISIBLE_DEVICES"] = config["gpus"]
-    if config["random_seed"]:
-        pl.seed_everything(config["random_seed"], workers=True)
+    pl.seed_everything(config["random_seed"], workers=True)
+    torch.random.manual_seed(config["random_seed"])
 
     # Setup dataloaders
     dataset_name = config["dataset_name"]
@@ -282,8 +308,8 @@ if __name__ == "__main__":
     # Make trainer
     trainer = Trainer(
         logger=logger,
-        strategy=DDPStrategy(find_unused_parameters=True),
         callbacks=callbacks,
+        deterministic=True,
         **config["trainer"],
     )
 
@@ -291,14 +317,34 @@ if __name__ == "__main__":
             pl_model,
             train_dataloaders = dataloaders["train"],
             val_dataloaders = dataloaders["val"],
-            ckpt_path = config["ckpt_path"]
+            ckpt_path = config["ckpt_path"],
         )
     
     print("Training complete. Running final evaluation")
-    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None)
     
+    cache_dir = config.get("cache_dir", None)
+    num_cached_samples = config.get("num_cached_samples", 0)
+    results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None, cache_dir=cache_dir, num_cached_samples=num_cached_samples, device="cuda")
+
     parsed_results = parse_results(results_dir) # Compute average metrics
+    
+    if config.get("run_asr_eval", False):
+        assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
+        print("Running ASR evaluation")
+        asr_results = run_asr_eval(cache_dir, device="cuda")
+        for key, value in asr_results.items(): # Add to main results file
+            parsed_results[key] = value
+    
     for key, value in parsed_results.items():
-        print(f"{key}: {value:.4f}")
+        if value is None:
+            print(f"{key}: None")
+        else:
+            print(f"{key}: {value:.4f}")
 
     json.dump(parsed_results, open(os.path.join(results_dir, "final_results.json"), "w"), indent=4)
+    
+    hp_metric = -parsed_results.get("accuracy_private", 0.0)
+    trainer.logger.log_hyperparams(
+        pl_model.hparams,
+        {"hp_metric": hp_metric},
+    )

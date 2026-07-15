@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
-from typing import Dict, Callable, Union
+from typing import Dict, Union, List
 import json
 
 
@@ -17,7 +17,7 @@ class EmbeddingDataset(Dataset):
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
             max_length: int = 300,
-            speakers: list = None
+            speakers: Union[List[str], None] = None
         ):
 
         self.input_type = input_type
@@ -83,11 +83,12 @@ class EmbeddingDataset(Dataset):
         
 
         return batch_features, labs, embedding, lengths
+        return batch_features, labs, embedding, lengths
     
 
 def get_dataloaders(
                     dataset_kwargs: Dict = {},
-                    train_val_spk: list = None,
+                    train_val_spk: Union[Dict[str, List[str]], None] = None,
                     batch_size: int = 16,
                     train_ratio: float = 0.9,
                     **dataloader_kwargs
@@ -96,7 +97,7 @@ def get_dataloaders(
     """Generate dataloader(s) with option to split into train/val
 
     Args:
-        DatasetClass (Dataset): dataset to use for generating loader
+        train_val_spk (Union[Dict[str, List[str]], None], optional): dictionary with 'train' and 'val' keys containing lists of speaker IDs for train/val split. Defaults to None.
         dataset_kwargs (Dict): kwargs for dataset construction
         batch_size (int): batch size
         collate_fn (Union[Callable, None], optional): Function to use for batch collation. Defaults to None.
@@ -113,7 +114,17 @@ def get_dataloaders(
         val_dset = EmbeddingDataset(**dataset_kwargs, speakers=train_val_spk['val'])
     else:
         full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
+    if train_val_spk is not None:
+        train_dset = EmbeddingDataset(**dataset_kwargs, speakers=train_val_spk['train'])
+        val_dset = EmbeddingDataset(**dataset_kwargs, speakers=train_val_spk['val'])
+    else:
+        full_dset = EmbeddingDataset(**dataset_kwargs, split="dev")
 
+        train_size = int(len(full_dset) * train_ratio)
+        val_size = len(full_dset) - train_size
+        train_dset, val_dset = random_split(full_dset, [train_size, val_size])
+        
+    
         train_size = int(len(full_dset) * train_ratio)
         val_size = len(full_dset) - train_size
         train_dset, val_dset = random_split(full_dset, [train_size, val_size])
@@ -162,6 +173,7 @@ if __name__ == "__main__":
     print(f"\nComputing statistics for quantized embeddings...")
     quantized_features_list = []
     for batch in quantized_dataloader:
+        features, _, _, lengths = batch
         features, _, _, lengths = batch
         # Collect only the non-padded part of each sample
         for i, length in enumerate(lengths):
