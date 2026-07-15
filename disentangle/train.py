@@ -322,6 +322,14 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
+    
+    # DEBUG
+    hp_metric = -1
+    trainer.logger.log_hyperparams(
+        pl_model.hparams,
+        {"hp_metric": hp_metric},
+    )
+    
     cache_dir = config.get("cache_dir", None)
     num_cached_samples = config.get("num_cached_samples", 0)
     results_dir = run_eval(config, log_dir, pl_model, stats, val_spks=train_val_spks["val"] if train_val_spks else None, cache_dir=cache_dir, num_cached_samples=num_cached_samples, device="cuda")
@@ -342,3 +350,9 @@ if __name__ == "__main__":
             print(f"{key}: {value:.4f}")
 
     json.dump(parsed_results, open(os.path.join(results_dir, "final_results.json"), "w"), indent=4)
+    
+    hp_metric = -parsed_results.get("accuracy_private", 0.0)
+    trainer.logger.log_hyperparams(
+        pl_model.hparams,
+        {"hp_metric": hp_metric},
+    )
