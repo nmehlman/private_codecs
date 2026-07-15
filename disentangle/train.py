@@ -57,7 +57,7 @@ def run_eval(
     
     if cache_dir: # Ensure cache dir exists and clear its contents (including nested subdirs)
         shutil.rmtree(cache_dir)
-        os.makedirs(cache_dir, exist_ok=True)
+    os.makedirs(cache_dir, exist_ok=True)
 
     codec_name = config["codec_name"]
     sample_to_save = config.get("sample_to_save", 25)  # Number of samples to save with audio for qualitative analysis

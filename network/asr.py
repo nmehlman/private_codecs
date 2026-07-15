@@ -74,7 +74,7 @@ class WhisperASR(nn.Module):
             results.append(out["text"])
 
         # Save transcriptions as JSON mapping filename -> transcription
-        trans_dict = {os.path.basename(file_path): transcription for file_path, transcription in zip(audio_files, results)}
+        trans_dict = {os.path.basename(file_path): transcription for file_path, transcription in zip(length_filtered_audio_files, results)}
         with open(save_path, "w", encoding="utf-8") as f:
             json.dump(trans_dict, f, ensure_ascii=False, indent=2)
 
