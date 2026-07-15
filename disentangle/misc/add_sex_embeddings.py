@@ -114,15 +114,18 @@ if __name__ == "__main__":
         speaker = sample["speaker"]
         session = sample.get("session", "unknown_session")  # Vox1 has session info, others may not
         
-        with torch.no_grad():
-            sex_embedding, _ = sex_model(
-                audio, length=torch.tensor([length]).to(config["device"])
-            )
-        
         save_path = os.path.join(save_root, f"{speaker}_{session}_{filename}.wav.pkl")
         assert os.path.exists(save_path)
 
         saved_data = pickle.load(open(save_path, "rb"))
+        if "vg_sex_embedding" in saved_data:
+            continue  # Skip if already processed
+        
+        with torch.no_grad():
+            sex_embedding, _ = sex_model(
+                audio, length=torch.tensor([length]).to(config["device"])
+            )
+
         saved_data["vg_sex_embedding"] = sex_embedding.squeeze().cpu().numpy()
         with open(save_path, "wb") as f:
             pickle.dump(saved_data, f)
