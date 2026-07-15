@@ -116,7 +116,7 @@ if __name__ == "__main__":
         
         with torch.no_grad():
             sex_embedding, _ = sex_model(
-                audio, lengths=torch.tensor([length]).to(config["device"])
+                audio, length=torch.tensor([length]).to(config["device"])
             )
         
         save_path = os.path.join(save_root, f"{speaker}_{session}_{filename}.pkl")
