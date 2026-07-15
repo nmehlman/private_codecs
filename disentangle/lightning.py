@@ -56,6 +56,8 @@ class SexDisentangleModule(pl.LightningModule):
         log_gradients: bool = False,
     ):
         super().__init__()
+        
+        self.save_hyperparameters(ignore=["dataset_stats"])
 
         self.ae = DisentanglementAE(
             codec_dim=codec_dim,
