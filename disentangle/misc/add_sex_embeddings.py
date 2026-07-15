@@ -26,6 +26,8 @@ class VoiceGenderClassifier(torch.nn.Module):
     sample_rate = 16000
 
     def __init__(self, device: Union[torch.device, str] = torch.device("cpu")) -> None:
+        
+        super().__init__()
 
         self.device = device
         self.model = ECAPA_gender.from_pretrained("JaesungHuh/voice-gender-classifier")
