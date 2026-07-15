@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 audio, length=torch.tensor([length]).to(config["device"])
             )
         
-        save_path = os.path.join(save_root, f"{speaker}_{session}_{filename}.pkl")
+        save_path = os.path.join(save_root, f"{speaker}_{session}_{filename}.wav.pkl")
         assert os.path.exists(save_path)
 
         saved_data = pickle.load(open(save_path, "rb"))
