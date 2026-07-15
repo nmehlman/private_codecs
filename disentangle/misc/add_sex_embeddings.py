@@ -123,7 +123,7 @@ if __name__ == "__main__":
         assert os.path.exists(save_path)
 
         saved_data = pickle.load(open(save_path, "rb"))
-        #saved_data["vg_sex_embedding"] = sex_embedding.squeeze().cpu().numpy()
-        #with open(save_path, "wb") as f:
-        #    pickle.dump(saved_data, f)
+        saved_data["vg_sex_embedding"] = sex_embedding.squeeze().cpu().numpy()
+        with open(save_path, "wb") as f:
+            pickle.dump(saved_data, f)
 
