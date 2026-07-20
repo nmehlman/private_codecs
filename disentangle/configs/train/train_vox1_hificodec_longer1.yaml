@@ -40,7 +40,6 @@ tensorboard:
 trainer:
   accelerator: gpu
   detect_anomaly: false
-  deterministic: false
   devices: auto
   log_every_n_steps: 10
   max_epochs: 200
