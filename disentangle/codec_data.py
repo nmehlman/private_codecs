@@ -16,6 +16,7 @@ class EmbeddingDataset(Dataset):
             codec: str = "encodec",
             input_type: str = "quantized_embedding", # input_type can be "codes", "raw_embedding" or "quantized_embedding"
             emotion_model: str = "wavlm",
+            use_vg_sex_embeddings: bool = False,
             max_length: int = 300,
             speakers: Union[List[str], None] = None
         ):
@@ -24,6 +25,7 @@ class EmbeddingDataset(Dataset):
         self.emotion_model = emotion_model
         self.max_length = max_length
         self.speakers = speakers
+        self.use_vg_sex_embeddings = use_vg_sex_embeddings
 
         data_root = os.path.join(dataset_path, codec, split)
         
@@ -41,10 +43,14 @@ class EmbeddingDataset(Dataset):
         with open(os.path.join(self.data_root, self.all_files[index]), "rb") as f:
             
             sample = pickle.load(f)
-            
-        features = sample[self.input_type]
+        
+        if self.use_vg_sex_embeddings: # Use embeddings from voice gender classifier (https://github.com/JaesungHuh/voice-gender-classifier)
+            embedding = sample["vg_sex_embeddings"]
+        else: # Use VoxProfile embeddings
+            features = sample[self.input_type]
+            embedding = sample["age_sex_embeddings"]
+        
         label = sample["label"]
-        embedding = sample["age_sex_embeddings"]
         
         # Check for NaN values
         if torch.isnan(features).any():

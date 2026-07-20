@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"/Users/nmehlman/Desktop/Private Codecs/private_codecs\" status --short)",
+      "Read(//Users/nmehlman/Desktop/Private Codecs/private_codecs/**)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('disentangle/train_adversary.py'\\).read\\(\\)\\)\")",
+      "Bash(python -c \"import yaml; yaml.safe_load\\(open\\('disentangle/configs/train/adversary_only_vox1_hificodec.yaml'\\)\\)\")"
+    ]
+  }
+}
