@@ -1,6 +1,3 @@
-"""Wrapper for the gender classifier from https://github.com/JaesungHuh/voice-gender-classifier"""
-
-# Need to add to path
 import sys
 sys.path.append("/home1/nmehlman/PESSA_Project/repos")
 from voice_gender_classifier.model import ECAPA_gender # type: ignore
@@ -11,15 +8,12 @@ from fileinput import filename
 from data.expresso import ExpressoDataset, EXPRESSO_SR
 from data.msp_podcast import MSPPodcastDataset, MSP_SR
 from data.vox1 import Vox1Dataset, VOX1_SR
-from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR, BIGCODEC_SR
 import tqdm
 import torch
 import argparse
 import pickle
 import os
 import yaml
-
-from network.models import VoxProfileAgeSexModel
 
 class VoiceGenderClassifier(torch.nn.Module):
 
