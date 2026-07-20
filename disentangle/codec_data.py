@@ -40,14 +40,14 @@ class EmbeddingDataset(Dataset):
     
     def __getitem__(self, index):
         
-        with open(os.path.join(self.data_root, self.all_files[index]), "rb") as f:
-            
+        with open(os.path.join(self.data_root, self.all_files[index]), "rb") as f:       
             sample = pickle.load(f)
+
+        features = sample[self.input_type]
         
         if self.use_vg_sex_embeddings: # Use embeddings from voice gender classifier (https://github.com/JaesungHuh/voice-gender-classifier)
-            embedding = sample["vg_sex_embeddings"]
-        else: # Use VoxProfile embeddings
-            features = sample[self.input_type]
+            embedding = torch.from_numpy(sample["vg_sex_embedding"])
+        else: # Use VoxProfile embedding
             embedding = sample["age_sex_embeddings"]
         
         label = sample["label"]

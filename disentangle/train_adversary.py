@@ -90,7 +90,7 @@ def main():
     ae_ckpt = config.get("ae_ckpt", None)
     if ae_ckpt:
         pl_model = SexDisentangleModule.load_from_checkpoint(
-            ae_ckpt, dataset_stats=stats, **config["lightning"]
+            ae_ckpt, dataset_stats=stats, **config["model"]
         ).to(device).eval()
         for p in pl_model.parameters():
             p.requires_grad_(False)

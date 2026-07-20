@@ -31,7 +31,7 @@ dataloader:
 # Adversary options:
 model:
   codec_dim: 512
-  emotion_dim: 256
+  emotion_dim: 192
   adversarial_channels: [256, 256, 256]
   tau_cl: 0.07
   tau_st: 0.07
