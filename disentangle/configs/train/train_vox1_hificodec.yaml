@@ -42,7 +42,6 @@ lightning:
   adv_update_factor: 5  
   gradient_clip_val: 100.0
   ae_warmup_steps: 50000
-  adv_weight_decay: 0.001
   log_gradients: false
 
 # Training options:
