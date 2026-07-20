@@ -8,7 +8,7 @@ input_type: "quantized_embedding"
 max_epochs: 100
 
 # Where checkpoints, tensorboard logs, and the config copy are saved
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/adversary_only/vox1_hificodec"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/adversary_only/vox1_hificodec-vg"
 
 # Optional: path to a pretrained SexDisentangleModule checkpoint. If set, the
 # adversary is trained on the frozen AE's latents instead of raw codec features
