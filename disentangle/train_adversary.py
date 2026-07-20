@@ -101,7 +101,7 @@ def main():
         adv_input_dim = model_cfg["codec_dim"]
         print(f"No AE checkpoint given; training adversary directly on codec features (dim={adv_input_dim})")
 
-    if config.get("use_vg_sex_embeddings", False):
+    if config['dataset'].get("use_vg_sex_embeddings", False):
         embedding_dim = 192
     else:
         embedding_dim = model_cfg["emotion_dim"]
