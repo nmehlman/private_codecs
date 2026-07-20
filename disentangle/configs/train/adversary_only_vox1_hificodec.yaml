@@ -13,7 +13,7 @@ log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/adversary_only/vox1
 # Optional: path to a pretrained SexDisentangleModule checkpoint. If set, the
 # adversary is trained on the frozen AE's latents instead of raw codec features
 # (in that case also provide the matching `lightning:` section from the AE's config).
-ae_ckpt: null
+ae_ckpt: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/contrastive_gender/version_3/checkpoints/last.ckpt"
 
 # Dataset options:
 dataset:

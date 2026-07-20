@@ -8,8 +8,6 @@ dataset_sr: 16000
 codec_name: "hificodec"
 input_type: "quantized_embedding"
 
-ae_ckpt: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/contrastive_gender/version_3/checkpoints/last.ckpt"
-
 # Dataset options:
 dataset:
   train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
