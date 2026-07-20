@@ -8,12 +8,12 @@ input_type: "quantized_embedding"
 max_epochs: 100
 
 # Where checkpoints, tensorboard logs, and the config copy are saved
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/adversary_only/vox1_hificodec-vg"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/adversary_only/vox1_hificodec-earlier-ae-ckpt"
 
 # Optional: path to a pretrained SexDisentangleModule checkpoint. If set, the
 # adversary is trained on the frozen AE's latents instead of raw codec features
 # (in that case also provide the matching `lightning:` section from the AE's config).
-ae_ckpt: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/contrastive_gender/version_3/checkpoints/last.ckpt"
+ae_ckpt: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/contrastive_gender/version_3/checkpoints/epoch=39-step=251280.ckpt"
 
 # Dataset options:
 dataset:
@@ -21,7 +21,7 @@ dataset:
   dataset_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/"
   codec: "hificodec"
   split: "dev"
-  use_vg_sex_embeddings: true
+  use_vg_sex_embeddings: false
 
 # Dataloader options:
 dataloader:
