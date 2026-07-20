@@ -101,9 +101,13 @@ def main():
         adv_input_dim = model_cfg["codec_dim"]
         print(f"No AE checkpoint given; training adversary directly on codec features (dim={adv_input_dim})")
 
+    if config.get("use_vg_sex_embeddings", False):
+        embedding_dim = 192
+    else:
+        embedding_dim = model_cfg["emotion_dim"]
     adversary = AdversarialClassifier(
         input_dim=adv_input_dim,
-        emotion_dim=model_cfg["emotion_dim"],
+        emotion_dim=embedding_dim,
         channels=model_cfg.get("adversarial_channels", [128, 128, 128]),
         tau=model_cfg.get("tau_cl", 0.07),
         **model_cfg.get("adversarial_kwargs", {}),
