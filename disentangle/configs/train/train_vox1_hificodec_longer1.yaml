@@ -16,7 +16,7 @@ gpus: '0'
 input_type: quantized_embedding
 lightning:
   adv_annealing_steps: 50000
-  adv_loss_weight: 0.5
+  adv_loss_weight: 1.0
   adv_update_factor: 5
   adv_weight_decay: 0.0001
   ae_warmup_steps: 50000
