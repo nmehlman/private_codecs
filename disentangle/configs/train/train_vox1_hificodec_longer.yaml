@@ -13,7 +13,6 @@ dataset:
   train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
   dataset_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/"
   codec: "hificodec"
-  split: "dev"
 
 audio_eval_dataset:
   data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/" 
@@ -37,7 +36,7 @@ lightning:
   lr_scheduling: false
   adv_annealing_steps: 50000 
   adv_loss_weight: 0.5
-  adv_update_factor: 10  
+  adv_update_factor: 5  
   gradient_clip_val: 100.0
   ae_warmup_steps: 50000
   adv_weight_decay: 0.001
@@ -56,5 +55,5 @@ trainer:
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender"
-  name: "more-up" 
+  name: "longer" 
   version: null  
