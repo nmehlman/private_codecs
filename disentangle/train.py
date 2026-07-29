@@ -237,15 +237,14 @@ class EpochInferenceCallback(Callback):
         pl_module.log("epoch_inference/sex_entropy_private", sex_entropy_private, on_step=False, on_epoch=True, sync_dist=True)
         pl_module.log("epoch_inference/sex_entropy_codec_only", sex_entropy_codec_only, on_step=False, on_epoch=True, sync_dist=True)
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")
-parser.add_argument("--config", type=str, required=True, help="Path to the YAML configuration file")
-args = parser.parse_args()
-
-
 if __name__ == "__main__":
 
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="PyTorch Lightning Training Script")
+    parser.add_argument("--config", type=str, required=True, help="Path to the YAML configuration file")
+    args = parser.parse_args()
 
     # Load config, and perform general setup
     with open(args.config, "r") as f:
@@ -260,6 +259,16 @@ if __name__ == "__main__":
     codec_name = config["codec_name"]
     input_type = config["input_type"]
 
+    # Create logger (logs are saved to /save_dir/name/version/):
+    logger = TensorBoardLogger(**config["tensorboard"])
+
+    # Save config to tensorboard directory
+    log_dir = logger.log_dir
+    config_save_path = os.path.join(log_dir, "config.yaml")
+    os.makedirs(log_dir, exist_ok=True)
+    with open(config_save_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+        
     # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
     train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
     if train_val_spks_split_file:
@@ -283,16 +292,6 @@ if __name__ == "__main__":
         **config["lightning"],
         dataset_stats=stats
     )
-
-    # Create logger (logs are saved to /save_dir/name/version/):
-    logger = TensorBoardLogger(**config["tensorboard"])
-
-    # Save config to tensorboard directory
-    log_dir = logger.log_dir
-    config_save_path = os.path.join(log_dir, "config.yaml")
-    os.makedirs(log_dir, exist_ok=True)
-    with open(config_save_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
 
     callbacks = []
     callbacks.append(EpochInferenceCallback(
