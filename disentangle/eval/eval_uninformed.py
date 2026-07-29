@@ -1,5 +1,3 @@
-# TODO swap out prototypes from other cases
-
 from disentangle.lightning import SexDisentangleModule
 from disentangle.misc.utils import load_dataset_stats
 from network.models import VoxProfileAgeSexModel
@@ -11,6 +9,7 @@ from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR
 import argparse
 import os
 import re
+from private_codecs.disentangle.eval.run_asr import run_asr_eval
 import pytorch_lightning as pl # type: ignore
 import yaml  # type: ignore
 
@@ -223,7 +222,6 @@ if __name__ == "__main__":
     codec_class, codec_sr = CODECS[codec_name]
     codec = codec_class(device=config["device"])
 
-
     # Maybe load predefined train/val speaker splits from json file and add to dataset kwargs
     train_val_spks_split_file = config["dataset"].pop("train_val_spks_split_file", None)
     if train_val_spks_split_file:
@@ -288,6 +286,11 @@ if __name__ == "__main__":
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
+            
+    if config.get("run_asr_eval", False):
+        assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
+        print("Running ASR evaluation")
+        asr_results = run_asr_eval(cache_dir, device="cuda")
 
     
     
