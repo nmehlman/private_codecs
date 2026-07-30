@@ -9,7 +9,7 @@ from network.codec import HifiCodec, EnCodec, BigCodec, HIFICODEC_SR, ENCODEC_SR
 import argparse
 import os
 import re
-from private_codecs.disentangle.eval.run_asr import run_asr_eval
+from disentangle.eval.run_asr import run_asr_eval
 import pytorch_lightning as pl # type: ignore
 import yaml  # type: ignore
 
