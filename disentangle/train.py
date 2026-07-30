@@ -100,7 +100,7 @@ def run_eval(
             "difference_metrics": results["difference_metrics"],
         }
         
-        if i <= config.get("num_samples_to_save", 0):  # Save audio only for first N samples
+        if i <= sample_to_save:  # Save audio only for first N samples
             save_dict["audio_raw"] = results["audio_raw"]
             save_dict["audio_private"] = results["audio_private"]
             save_dict["audio_codec_only"] = results["audio_codec_only"]
