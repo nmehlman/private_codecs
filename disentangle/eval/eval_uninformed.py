@@ -288,8 +288,6 @@ if __name__ == "__main__":
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
     
-        if i > 100: break # DEBUG
-
     # Parse the results
     parsed_results = parse_results(save_root) # Compute average metrics
     
