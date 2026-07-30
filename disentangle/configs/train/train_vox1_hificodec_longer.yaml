@@ -53,6 +53,8 @@ trainer:
   devices: "auto"
   detect_anomaly: False
 
+run_asr_eval: true
+
 # Tensorboard options:
 tensorboard:
   save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender"
