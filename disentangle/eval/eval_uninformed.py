@@ -21,6 +21,7 @@ import shutil
 import json
 
 from disentangle.lightning import compute_difference_metric
+from disentangle.misc.parse_results import parse_results
 
 def get_stats(tensor):
         return {
@@ -289,10 +290,27 @@ if __name__ == "__main__":
     
         if i > 100: break # DEBUG
 
-    if config.get("run_asr_eval", False):
-        assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
-        print("Running ASR evaluation")
-        asr_results = run_asr_eval(cache_dir, device="cuda")
+        # Parse the results
+        parsed_results = parse_results(save_root) # Compute average metrics
+        
+        if config.get("run_asr_eval", False):
+            assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
+            print("Running ASR evaluation")
+            asr_results = run_asr_eval(cache_dir, device="cuda")
+            for key, value in asr_results.items(): # Add to main results file
+                parsed_results[key] = value
+        
+        for key, value in parsed_results.items():
+            if value is None:
+                print(f"{key}: None")
+            else:
+                print(f"{key}: {value:.4f}")
+    
+        json.dump(parsed_results, open(os.path.join(save_root, "final_results.json"), "w"), indent=4)
+        
+
+
+    
 
     
     
