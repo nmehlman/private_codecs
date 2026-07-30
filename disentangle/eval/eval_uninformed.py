@@ -286,7 +286,9 @@ if __name__ == "__main__":
         save_path = os.path.join(save_root, f"{i}_{results['filename']}.pkl")
         with open(save_path, "wb") as f:
             pickle.dump(save_dict, f)
-            
+    
+        if i > 100: break # DEBUG
+
     if config.get("run_asr_eval", False):
         assert cache_dir is not None, "Cache directory must be specified for ASR evaluation"
         print("Running ASR evaluation")
