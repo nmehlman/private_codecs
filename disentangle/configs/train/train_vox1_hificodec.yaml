@@ -1,59 +1,50 @@
-# Basic training configuration for Expresso with Encodec features
-
-random_seed: 42
-ckpt_path: null
-gpus: "0"
-dataset_name: "vox1"
-dataset_sr: 16000
-codec_name: "hificodec"
-input_type: "quantized_embedding"
-
-# Dataset options:
-dataset:
-  train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
-  dataset_path: "/project2/shrikann_35/DATA/Vox1/codec_feats/"
-  codec: "hificodec"
-
 audio_eval_dataset:
-  data_dir: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/" 
-  audio_subdir: "vox1_dev_wav"
-
-# Dataloader options:
+  audio_subdir: vox1_dev_wav
+  data_dir: /project2/shrikann_35/nmehlman/data/svpp-data/vox1/
+ckpt_path: null
+codec_name: hificodec
 dataloader:
   batch_size: 64
   num_workers: 4
+dataset:
+  codec: hificodec
+  split: dev
+  dataset_path: /project2/shrikann_35/DATA/Vox1/codec_feats/
+  train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
 
-# Model options:
+dataset_name: vox1
+dataset_sr: 16000
+gpus: '0'
+input_type: quantized_embedding
 lightning:
+  adv_annealing_steps: 50000
+  adv_loss_weight: 1.0
+  adv_update_factor: 5
+  adv_weight_decay: 0.001
+  ae_warmup_steps: 50000
+  gradient_clip_val: 250.0
   codec_dim: 512
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
   learning_rate: 0.001
-  weight_decay: 0
+  log_gradients: false
+  lr_scheduling: false
   normalize_input: true
   use_adversarial: true
-  lr_scheduling: false
-  adv_annealing_steps: 50000 
-  adv_loss_weight: 0.5
-  adv_update_factor: 5  
-  gradient_clip_val: 100.0
-  ae_warmup_steps: 50000
-  adv_weight_decay: 0.001
-  log_gradients: false
+  weight_decay: 0
+random_seed: 42
 
-# Training options:
-trainer:
-  max_epochs: 140
-  val_check_interval: 1.0 # Must be >= 1 for iterable-type dataset
-  log_every_n_steps: 10    
-  sync_batchnorm: True
-  accelerator: "gpu"
-  devices: "auto"
-  detect_anomaly: False
-
-# Tensorboard options:
 tensorboard:
-  save_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender"
-  name: "repro" 
-  version: null  
+  name: stability-debug
+  save_dir: /project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender
+  version: null
+
+trainer:
+  accelerator: gpu
+  detect_anomaly: false
+  devices: auto
+  log_every_n_steps: 10
+  max_epochs: 200
+  sync_batchnorm: true
+  val_check_interval: 1.0
