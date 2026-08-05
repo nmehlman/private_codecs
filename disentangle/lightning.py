@@ -269,6 +269,10 @@ class SexDisentangleModule(pl.LightningModule):
             
             # Apply gradient clipping
             self._clip_gradients(self.adv_classifier.parameters())
+            
+            # Compute and log gradient norm
+            grad_norm_adv = self._compute_grad_norm(self.adv_classifier.parameters())
+            self.log("grad_norm_adversarial_clipped", grad_norm_adv, on_step=True, on_epoch=False, sync_dist=True)
 
             opt_adv.step()
             opt_adv.zero_grad(set_to_none=True)
@@ -302,6 +306,10 @@ class SexDisentangleModule(pl.LightningModule):
     
         # Apply gradient clipping
         self._clip_gradients(self.ae.parameters())
+        
+        # Compute and log gradient norm
+        grad_norm_ae = self._compute_grad_norm(self.ae.parameters())
+        self.log("grad_norm_autoencoder_clipped", grad_norm_ae, on_step=True, on_epoch=False, sync_dist=True)
     
         opt_ae.step()
         self.untoggle_optimizer(opt_ae)
