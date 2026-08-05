@@ -292,21 +292,23 @@ if __name__ == "__main__":
         **config["lightning"],
         dataset_stats=stats
     )
-
-    callbacks = []
-    callbacks.append(EpochInferenceCallback(
+    
+    epoch_inf_callback = EpochInferenceCallback(
         codec_name=codec_name,
         device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
-    ))
-    callbacks.append(ModelCheckpoint(
+    )
+    
+    ckpt_callback = ModelCheckpoint(
         monitor="epoch_inference/sex_accuracy_private",
         every_n_epochs=1,
         mode="min",
         filename="best-{epoch}-{val_adv_acc:.3f}",
         save_top_k=1,
         save_last=True,
-    ))
+    )
+
+    callbacks = [ckpt_callback, epoch_inf_callback]
 
     # Make trainer
     trainer = Trainer(
@@ -324,11 +326,7 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
-    best_ckpt_path = None
-    for cb in trainer.callbacks:
-        if isinstance(cb, ModelCheckpoint):
-            best_ckpt_path = cb.best_model_path
-            break
+    best_ckpt_path = ckpt_callback.best_model_path
 
     if best_ckpt_path:
         print(f"Loading best checkpoint: {best_ckpt_path}")
