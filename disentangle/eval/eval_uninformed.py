@@ -181,7 +181,12 @@ if __name__ == "__main__":
         required=True,
         help="Path to the configuration file."
     )
-    
+    parser.add_argument(
+        "--limit_samples",
+        type=int,
+        default=None,
+        help="Name of the checkpoint file to load. If not provided, the latest checkpoint will be used."
+    )
     
     args = parser.parse_args()
 
@@ -257,6 +262,9 @@ if __name__ == "__main__":
 
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
+        
+        if args.limit_samples is not None and i >= args.limit_samples:
+            break
         
         results = process_sample(
             sample,
