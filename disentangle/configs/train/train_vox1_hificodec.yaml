@@ -33,6 +33,8 @@ lightning:
   normalize_input: true
   use_adversarial: true
   weight_decay: 0
+  learning_rate: 0.001
+
 random_seed: 42
 
 tensorboard:
