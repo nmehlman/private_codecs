@@ -182,6 +182,7 @@ if __name__ == "__main__":
         help="Path to the configuration file."
     )
     
+    
     args = parser.parse_args()
 
     with open(args.config, "r") as f:

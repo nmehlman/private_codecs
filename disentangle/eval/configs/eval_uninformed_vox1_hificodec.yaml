@@ -6,7 +6,7 @@ device: "cuda"
 gpus: "0"
 
 run_asr_eval: true
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/longer/version_5"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/repro-test/version_0"
 ckpt_name: "epoch=9-step=125400.ckpt"
 num_samples_to_save: 10
 cache_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/audio_eval_cache/"
