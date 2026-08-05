@@ -42,6 +42,8 @@ lightning:
   ae_warmup_steps: 50000
   adv_weight_decay: 0.001
   log_gradients: false
+  learning_rate: 0.001
+
 
 # Training options:
 trainer:

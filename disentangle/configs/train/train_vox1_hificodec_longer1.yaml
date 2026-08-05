@@ -26,7 +26,7 @@ lightning:
   latent_dim: 64
   enc_channels: [256, 128]
   dec_channels: [256]
-  learning_rate: 0.001
+  learning_rate: 0.0005
   log_gradients: false
   lr_scheduling: false
   normalize_input: true
@@ -35,7 +35,7 @@ lightning:
 random_seed: 42
 
 tensorboard:
-  name: repro-test
+  name: shorter
   save_dir: /project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender
   version: null
 
@@ -44,6 +44,6 @@ trainer:
   detect_anomaly: false
   devices: auto
   log_every_n_steps: 10
-  max_epochs: 200
+  max_epochs: 40
   sync_batchnorm: true
   val_check_interval: 1.0
