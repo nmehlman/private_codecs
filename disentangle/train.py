@@ -324,6 +324,19 @@ if __name__ == "__main__":
         )
     
     print("Training complete. Running final evaluation")
+    best_ckpt_path = None
+    for cb in trainer.callbacks:
+        if isinstance(cb, ModelCheckpoint):
+            best_ckpt_path = cb.best_model_path
+            break
+
+    if best_ckpt_path:
+        print(f"Loading best checkpoint: {best_ckpt_path}")
+        pl_model = SexDisentangleModule.load_from_checkpoint(
+            best_ckpt_path,
+            dataset_stats=stats,
+            **config["lightning"],
+        )    
     
     cache_dir = config.get("cache_dir", None)
     num_cached_samples = config.get("num_cached_samples", 0)
