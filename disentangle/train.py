@@ -300,7 +300,7 @@ if __name__ == "__main__":
         dataset_sr=config.get("dataset_sr", 16000)
     ))
     callbacks.append(ModelCheckpoint(
-        monitor="val_adv_acc",
+        monitor="epoch_inference/sex_accuracy_private",
         every_n_epochs=1,
         mode="min",
         filename="best-{epoch}-{val_adv_acc:.3f}",
