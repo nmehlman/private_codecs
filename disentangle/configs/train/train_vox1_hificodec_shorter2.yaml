@@ -1,0 +1,49 @@
+audio_eval_dataset:
+  audio_subdir: vox1_dev_wav
+  data_dir: /project2/shrikann_35/nmehlman/data/svpp-data/vox1/
+ckpt_path: null
+codec_name: hificodec
+dataloader:
+  batch_size: 64
+  num_workers: 4
+dataset:
+  codec: hificodec
+  split: dev
+  dataset_path: /project2/shrikann_35/DATA/Vox1/codec_feats/
+  train_val_spks_split_file: "/project2/shrikann_35/nmehlman/data/svpp-data/vox1/priv_codec_train_val_skp.json"
+
+dataset_name: vox1
+dataset_sr: 16000
+gpus: '0'
+input_type: quantized_embedding
+lightning:
+  adv_annealing_steps: 50000
+  adv_loss_weight: 0.1
+  adv_update_factor: 5
+  adv_weight_decay: 0.0001
+  ae_warmup_steps: 50000
+  codec_dim: 512
+  latent_dim: 64
+  enc_channels: [256, 128]
+  dec_channels: [256]
+  learning_rate: 0.0001
+  log_gradients: false
+  lr_scheduling: true
+  normalize_input: true
+  use_adversarial: true
+  weight_decay: 0
+random_seed: 42
+
+tensorboard:
+  name: shorter
+  save_dir: /project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender
+  version: null
+
+trainer:
+  accelerator: gpu
+  detect_anomaly: false
+  devices: auto
+  log_every_n_steps: 10
+  max_epochs: 20
+  sync_batchnorm: true
+  val_check_interval: 1.0
