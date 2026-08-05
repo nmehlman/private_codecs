@@ -300,8 +300,11 @@ if __name__ == "__main__":
         dataset_sr=config.get("dataset_sr", 16000)
     ))
     callbacks.append(ModelCheckpoint(
-        every_n_epochs=10,
-        save_top_k=-1,
+        monitor="val_adv_acc",
+        every_n_epochs=1,
+        mode="min",
+        filename="best-{epoch}-{val_adv_acc:.3f}",
+        save_top_k=1,
         save_last=True,
     ))
 
