@@ -41,7 +41,10 @@ class SexDisentangleModule(pl.LightningModule):
         adversarial_channels: list = [128, 128, 128],
         adversarial_kwargs: dict = {},
         adv_loss_weight: float = 1.0,
-        learning_rate: float = 1e-3,
+        privacy_loss_weight: float = 1.0,
+        learning_rate_ae: float = 1e-3,
+        learning_rate_adv: float = 1e-3,
+        learning_rate: float = None,
         adv_annealing_steps: int = 0,
         ae_warmup_steps: int = 0,
         adv_update_factor: int = 1,
@@ -78,9 +81,16 @@ class SexDisentangleModule(pl.LightningModule):
         else:
             self.adv_classifier = nn.Identity()  # Placeholder when adversarial training is not used
 
-        self.learning_rate = learning_rate
+        if learning_rate is not None:
+            self.learning_rate_adv = learning_rate
+            self.learning_rate_ae = learning_rate
+        else:
+            self.learning_rate_ae = learning_rate_ae
+            self.learning_rate_adv = learning_rate_adv
+
         self.weight_decay = weight_decay
         self.adv_loss_weight = adv_loss_weight
+        self.privacy_loss_weight = privacy_loss_weight
         self.automatic_optimization = not use_adversarial  # Use automatic optimization when no adversarial training
         self.adv_annealing_steps = adv_annealing_steps
         self.ae_warmup_steps = max(0, ae_warmup_steps)
@@ -92,6 +102,7 @@ class SexDisentangleModule(pl.LightningModule):
         self.adv_weight_decay = adv_weight_decay
         self.freeze_ae = freeze_ae
         self.log_gradients = log_gradients
+        self.num_classes = num_classes
 
         assert not (freeze_ae and not use_adversarial), "freeze_ae cannot be True if use_adversarial is False."
 
@@ -149,6 +160,20 @@ class SexDisentangleModule(pl.LightningModule):
                 return self.adv_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
 
         return self.adv_loss_weight
+
+    def _compute_privacy_loss_weight(self):
+        # Keep adversarial signal off while AE warmup is active.
+        if self.global_step < self.ae_warmup_steps:
+            return 0.0
+
+        # Apply sine annealing after warmup.
+        if self.adv_annealing_steps > 0:
+            anneal_step = self.global_step - self.ae_warmup_steps
+            if anneal_step < self.adv_annealing_steps:
+                frac = anneal_step / self.adv_annealing_steps
+                return self.privacy_loss_weight * sin(frac * (3.14159265 / 2)) ** 2
+
+        return self.privacy_loss_weight
 
     def _freeze(self, module: torch.nn.Module):
         module.eval()
@@ -284,17 +309,22 @@ class SexDisentangleModule(pl.LightningModule):
         self._freeze(self.adv_classifier)
         self.toggle_optimizer(opt_ae)
         x_hat, z = self(x)
+
         adv_loss_weight = self._compute_adv_loss_weight()
-        fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+        #privacy_loss_weight = self._compute_privacy_loss_weight()
+
+        #fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
+        privacy_logits = self.adv_classifier(z, lengths)
 
         recon_loss = F.mse_loss(x_hat, x)
-        fool_loss = F.cross_entropy(fool_logits, sex_labs)
+        #fool_loss = F.cross_entropy(fool_logits, sex_labs)
+        privacy_loss = F.cross_entropy(privacy_logits, torch.full_like(privacy_logits, 1/self.num_classes))  # Encourage uniform predictions for privacy
 
-        ae_loss = recon_loss + fool_loss
+        ae_loss = recon_loss + adv_loss_weight * privacy_loss
         
         # Check for NaN
         self._check_nan(recon_loss, "train_recon_loss")
-        self._check_nan(fool_loss, "train_fool_loss")
+        self._check_nan(privacy_loss, "train_privacy_loss")
         self._check_nan(ae_loss, "train_ae_loss")
 
         opt_ae.zero_grad()
@@ -324,7 +354,7 @@ class SexDisentangleModule(pl.LightningModule):
                     "train_adv_loss": adv_loss.detach(),
                     "train_ae_loss": ae_loss.detach(),
                     "train_adv_acc": adv_acc.detach(),
-                    "train_fool_loss": fool_loss.detach(),
+                    "train_privacy_loss": privacy_loss.detach(),
                     "train_total_loss": ae_loss.detach(),
                     "train_adv_loss_weight": float(adv_loss_weight),
                 },
@@ -434,7 +464,7 @@ class SexDisentangleModule(pl.LightningModule):
     def configure_optimizers(self):
         
         opt_ae = torch.optim.Adam(
-            self.ae.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+            self.ae.parameters(), lr=self.learning_rate_ae, weight_decay=self.weight_decay
         )
         
         if not self.use_adversarial:
@@ -449,7 +479,7 @@ class SexDisentangleModule(pl.LightningModule):
         
         else:
             # Adversarial training: return both optimizers and schedulers
-            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate, weight_decay=self.adv_weight_decay)
+            opt_adv = torch.optim.Adam(self.adv_classifier.parameters(), lr=self.learning_rate_adv, weight_decay=self.adv_weight_decay)
             
             # Store optimizer names for logging
             self.optimizer_names = ["autoencoder", "adversarial"]
