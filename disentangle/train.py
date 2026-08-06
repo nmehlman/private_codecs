@@ -278,7 +278,7 @@ if __name__ == "__main__":
     )
     
     epoch_inf_callback = EpochInferenceCallback(
-        num_batches=16,
+        n_batches=16,
         codec_name=codec_name,
         device="cuda", 
         dataset_sr=config.get("dataset_sr", 16000)
