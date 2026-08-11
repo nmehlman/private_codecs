@@ -57,6 +57,7 @@ class SexDisentangleModule(pl.LightningModule):
         gradient_clip_val: float = 10.0,
         adv_weight_decay: float = 0,
         log_gradients: bool = False,
+        epsilon: float = 1.0,
     ):
         super().__init__()
         
@@ -103,6 +104,7 @@ class SexDisentangleModule(pl.LightningModule):
         self.freeze_ae = freeze_ae
         self.log_gradients = log_gradients
         self.num_classes = num_classes
+        self.epsilon = epsilon
 
         assert not (freeze_ae and not use_adversarial), "freeze_ae cannot be True if use_adversarial is False."
 
@@ -124,6 +126,15 @@ class SexDisentangleModule(pl.LightningModule):
             self.register_buffer("ds_mean", mean.view(1, -1, 1))
             self.register_buffer("ds_std", std.view(1, -1, 1))
 
+            self._build_loss_projection_mtx()
+
+    def _build_loss_projection_mtx(self):
+
+        svd = torch.load("/home1/nmehlman/private_codecs/sine-ablation/svd.pt")
+        S = svd["S"].to(self.device)
+        Vh = svd["Vh"].to(self.device)
+        St = torch.max(S, torch.full_like(S, self.epsilon))
+        self.loss_projection = (torch.diag(1.0 / St) @ Vh).unsqueeze(0)  # Add batch dimension
 
     def forward(self, x):
         
@@ -207,6 +218,12 @@ class SexDisentangleModule(pl.LightningModule):
         if self.gradient_clip_val > 0:
             torch.nn.utils.clip_grad_norm_(parameters, self.gradient_clip_val)
 
+    def projected_mse_loss(self, x_hat, x):
+        """Compute MSE loss after projecting both x_hat and x using the loss projection matrix."""
+        x_hat_proj = torch.bmm(self.loss_projection.repeat_interleave(x_hat.size(0), dim=0), x_hat)
+        x_proj = torch.bmm(self.loss_projection.repeat_interleave(x.size(0), dim=0), x)
+        return F.mse_loss(x_hat_proj, x_proj)
+
     def _compute_adv_grad_alignment(self, x, sex_labs, lengths):
         # Get optimizers (expects manual optimization context)
         opt_ae, _ = self.optimizers()
@@ -218,7 +235,7 @@ class SexDisentangleModule(pl.LightningModule):
         x_hat, z = self(x)
 
         fool_logits = self.adv_classifier(grl(z, 1.0), lengths)
-        recon_loss = F.mse_loss(x_hat, x)
+        recon_loss = self.projected_mse_loss(x_hat, x)
         fool_loss = F.cross_entropy(fool_logits, sex_labs)
         
          # Zero AE grads, backprop fool_loss but keep graph for second backward
@@ -248,7 +265,7 @@ class SexDisentangleModule(pl.LightningModule):
 
         # AE-only training with automatic optimization
         x_hat, z = self(x)
-        recon_loss = F.mse_loss(x_hat, x)
+        recon_loss = self.projected_mse_loss(x_hat, x)
         
         total_loss = recon_loss  
 
@@ -316,7 +333,7 @@ class SexDisentangleModule(pl.LightningModule):
         #fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
         privacy_logits = self.adv_classifier(z, lengths)
 
-        recon_loss = F.mse_loss(x_hat, x)
+        recon_loss = self.projected_mse_loss(torch.bmm(self.loss_projection, x_hat), torch.bmm(self.loss_projection, x))
         #fool_loss = F.cross_entropy(fool_logits, sex_labs)
         privacy_loss = F.cross_entropy(privacy_logits, torch.full_like(privacy_logits, 1/self.num_classes))  # Encourage uniform predictions for privacy
 
@@ -426,7 +443,7 @@ class SexDisentangleModule(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, sex_labs, _, lengths = batch
         x_hat, z = self(x)
-        recon_loss = F.mse_loss(x_hat, x)
+        recon_loss = self.projected_mse_loss(x_hat, x)
         self.log(
             "val_recon_loss",
             recon_loss.detach(),
