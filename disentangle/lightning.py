@@ -334,7 +334,7 @@ class SexDisentangleModule(pl.LightningModule):
         #fool_logits = self.adv_classifier(grl(z, adv_loss_weight), lengths)
         privacy_logits = self.adv_classifier(z, lengths)
 
-        recon_loss = self.projected_mse_loss(torch.bmm(self.loss_projection, x_hat), torch.bmm(self.loss_projection, x))
+        recon_loss = self.projected_mse_loss(x_hat, x)
         #fool_loss = F.cross_entropy(fool_logits, sex_labs)
         privacy_loss = F.cross_entropy(privacy_logits, torch.full_like(privacy_logits, 1/self.num_classes))  # Encourage uniform predictions for privacy
 
