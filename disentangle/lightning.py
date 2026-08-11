@@ -135,6 +135,7 @@ class SexDisentangleModule(pl.LightningModule):
         Vh = svd["Vh"].to(self.device)
         St = torch.max(S, torch.full_like(S, self.epsilon))
         self.loss_projection = (torch.diag(1.0 / St) @ Vh).unsqueeze(0)  # Add batch dimension
+        self.loss_projection.to(self.device)
 
     def forward(self, x):
         
