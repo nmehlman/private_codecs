@@ -221,8 +221,8 @@ class SexDisentangleModule(pl.LightningModule):
 
     def projected_mse_loss(self, x_hat, x):
         """Compute MSE loss after projecting both x_hat and x using the loss projection matrix."""
-        x_hat_proj = torch.bmm(self.loss_projection.repeat_interleave(x_hat.size(0), dim=0), x_hat)
-        x_proj = torch.bmm(self.loss_projection.repeat_interleave(x.size(0), dim=0), x)
+        x_hat_proj = torch.bmm(self.loss_projection.repeat_interleave(x_hat.size(0), dim=0).to(self.device), x_hat)
+        x_proj = torch.bmm(self.loss_projection.repeat_interleave(x.size(0), dim=0).to(self.device), x)
         return F.mse_loss(x_hat_proj, x_proj)
 
     def _compute_adv_grad_alignment(self, x, sex_labs, lengths):
