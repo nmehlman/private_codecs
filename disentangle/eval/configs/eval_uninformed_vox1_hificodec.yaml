@@ -6,7 +6,7 @@ device: "cuda"
 gpus: "0"
 
 run_asr_eval: true
-log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/confusion_loss/version_2"
+log_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/tensorboard/gender/pca_pitch/version_0"
 num_samples_to_save: 10
 cache_dir: "/project2/shrikann_35/nmehlman/logs/private_codecs/audio_eval_cache/"
 num_cached_samples: 1000
