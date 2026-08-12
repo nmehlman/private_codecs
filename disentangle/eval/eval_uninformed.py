@@ -259,6 +259,9 @@ if __name__ == "__main__":
                     shutil.rmtree(dirpath)
                 except Exception:
                     pass
+        os.mkdir(os.path.join(cache_dir, "raw_audio"))
+        os.mkdir(os.path.join(cache_dir, "private_audio"))
+        os.mkdir(os.path.join(cache_dir, "codec_only_audio"))
 
     # Process each sample
     for i, sample in tqdm.tqdm(enumerate(dataset), total=len(dataset), desc="Running Eval"):
